@@ -6,7 +6,7 @@ const de: Translations = {
     cancel: "Abbrechen",
     save: "Speichern",
     saving: "Speichere...",
-    delete: "Loeschen",
+    delete: "Löschen",
     error: "Da ist etwas schiefgelaufen",
     copy: "Kopieren",
     copied: "Kopiert",
@@ -21,7 +21,7 @@ const de: Translations = {
   layout: {
     signOut: "Abmelden",
     admin: "Admin",
-    footer: "friendtools - selbst gehostet fuer dich und deine Leute",
+    footer: "friendtools - selbst gehostet für dich und deine Leute",
   },
   notFound: {
     title: "Nicht gefunden",
@@ -30,7 +30,7 @@ const de: Translations = {
   auth: {
     login: {
       title: "Anmelden",
-      subtitle: "Willkommen zurueck.",
+      subtitle: "Willkommen zurück.",
       submit: "Anmelden",
       submitting: "Melde an...",
       noAccount: "Noch kein Konto?",
@@ -61,11 +61,11 @@ const de: Translations = {
   },
   dashboard: {
     eyebrow: "Deine Gruppen",
-    greeting: "Hey {{name}} - waehl eine Gruppe",
+    greeting: "Hey {{name}} - wähl eine Gruppe",
     subtitle:
       "Eine Gruppe ist dein Freundeskreis (WG, Urlaub, Stammtisch, ...). Jede Gruppe hat eigene Mitglieder und Tools.",
     yourGroups: "Gruppen",
-    open: "Oeffnen",
+    open: "Öffnen",
     join: "Beitreten",
     newGroup: "Neue Gruppe",
     memberCount_one: "{{count}} Mitglied",
@@ -75,13 +75,13 @@ const de: Translations = {
     empty: {
       title: "Noch keine Gruppen",
       description:
-        "Leg eine Gruppe fuer deine WG, einen Urlaub oder deine Crew an - oder tritt mit einem Einladungscode bei.",
+        "Leg eine Gruppe für deine WG, einen Urlaub oder deine Crew an - oder tritt mit einem Einladungscode bei.",
     },
     create: {
       title: "Neue Gruppe",
       name: "Name",
       namePlaceholder: "z.B. WG-Kasse",
-      currency: "Waehrung",
+      currency: "Währung",
       submit: "Anlegen",
     },
     joinForm: {
@@ -96,7 +96,7 @@ const de: Translations = {
     members_one: "{{count}} Mitglied",
     members_other: "{{count}} Mitglieder",
     tools: "Tools",
-    open: "Oeffnen",
+    open: "Öffnen",
     membersTitle: "Mitglieder",
     joined: "beigetreten {{date}}",
     inviteCode: "Einladungscode",
@@ -110,20 +110,25 @@ const de: Translations = {
     shareText: "Tritt meiner Gruppe \"{{name}}\" auf friendtools bei",
     inviteHint:
       "Teile Code, Link oder QR-Code mit allen, die der Gruppe beitreten sollen.",
-    delete: "Gruppe loeschen",
-    deleteHint: "Loescht die Gruppe und alle Tool-Daten unwiderruflich.",
-    deleteConfirm: '"{{name}}" und alle Daten wirklich loeschen?',
+    delete: "Gruppe löschen",
+    deleteHint: "Löscht die Gruppe und alle Tool-Daten unwiderruflich.",
+    deleteConfirm: '"{{name}}" und alle Daten wirklich löschen?',
     more: {
       title: "Mehr folgt",
       description:
-        "Weitere Tools (Tippspiel, Wichteln, Putzplan, ...) koennen als Module ergaenzt werden. Siehe README.",
+        "Weitere Tools (Tippspiel, Wichteln, Putzplan, ...) können als Module ergänzt werden. Siehe README.",
     },
   },
   tools: {
     splitwise: {
       name: "Kassenbuch",
       description:
-        "Geteilte Ausgaben fuer diese Gruppe - wer hat was gezahlt, wer schuldet wem was.",
+        "Geteilte Ausgaben für diese Gruppe - wer hat was gezahlt, wer schuldet wem was.",
+    },
+    trips: {
+      name: "Reiseboard",
+      description:
+        "Reise-Links sammeln (Airbnb, Booking, Blogposts, ...). Jeder Link bekommt eine Vorschau-Karte, die alle sofort sehen.",
     },
   },
   splitwise: {
@@ -144,9 +149,9 @@ const de: Translations = {
       noExpenses: "Noch keine Ausgaben. Leg die erste an!",
       paidBy: "gezahlt von {{name}}",
       breakdown: "Aufteilung",
-      deleteConfirm: 'Ausgabe "{{description}}" wirklich loeschen?',
-      deleteTooltip: "Loeschen (nur Ersteller)",
-      deleteAria: "Ausgabe loeschen",
+      deleteConfirm: 'Ausgabe "{{description}}" wirklich löschen?',
+      deleteTooltip: "Löschen (nur Ersteller)",
+      deleteAria: "Ausgabe löschen",
     },
     newExpense: {
       back: "Zum Kassenbuch",
@@ -161,7 +166,7 @@ const de: Translations = {
       sum: "Summe: {{amount}}",
       matches: "passt",
       difference: "Differenz {{amount}}",
-      errorInvalidAmount: "Bitte einen gueltigen Betrag eingeben.",
+      errorInvalidAmount: "Bitte einen gültigen Betrag eingeben.",
       errorSumMismatch:
         "Summe der Aufteilungen ({{sum}}) passt nicht zum Betrag ({{amount}}).",
       errorNoParticipants: "Mindestens eine Person muss beteiligt sein.",
@@ -169,10 +174,34 @@ const de: Translations = {
       submitting: "Speichere...",
     },
   },
+  trips: {
+    overview: {
+      backToGroup: "Zur Gruppe",
+      title: "Reiseboard",
+      subtitle: "Links, die die Gruppe in Erwägung zieht.",
+      add: "Link hinzufügen",
+      addTitle: "Link hinzufügen",
+      url: "URL",
+      noteOptional: "Notiz (optional)",
+      notePlaceholder: "Was ist daran interessant?",
+      addNote: "Notiz hinzufügen",
+      editNote: "Deine Notiz bearbeiten",
+      refresh: "Vorschau aktualisieren",
+      like: "Gefällt mir",
+      dislike: "Gefällt mir nicht",
+      deleteConfirm: "Diesen Link vom Board entfernen?",
+      addedBy: "Von {{name}} am {{date}} hinzugefügt",
+      empty: {
+        title: "Noch keine Links",
+        description:
+          "Airbnb-, Booking- oder Blog-Link einfügen - die Vorschau wird automatisch geladen.",
+      },
+    },
+  },
   invite: {
     joiningTitle: "Trete Gruppe bei...",
     joiningSubtitle: "Mit Einladungscode {{code}}",
-    backToDashboard: "Zurueck zu den Gruppen",
+    backToDashboard: "Zurück zu den Gruppen",
   },
   admin: {
     title: "Nutzerverwaltung",
@@ -185,9 +214,9 @@ const de: Translations = {
     approve: "Freischalten",
     promote: "Zum Admin machen",
     demote: "Admin-Rechte entziehen",
-    delete: "Nutzer loeschen",
+    delete: "Nutzer löschen",
     deleteConfirm:
-      "Diesen Nutzer wirklich loeschen? Das geht nur, wenn er/sie noch keine Gruppen oder Ausgaben angelegt hat.",
+      "Diesen Nutzer wirklich löschen? Das geht nur, wenn er/sie noch keine Gruppen oder Ausgaben angelegt hat.",
     badgeAdmin: "Admin",
     badgePending: "Wartet",
   },

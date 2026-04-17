@@ -86,6 +86,24 @@ export interface Expense {
   splits: ExpenseSplit[];
 }
 
+export interface TripLink {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  site_name: string | null;
+  note: string;
+  added_by: string;
+  added_by_display_name: string;
+  created_at: string;
+  fetched_at: string | null;
+  likes: number;
+  dislikes: number;
+  /** 1 = like, -1 = dislike, 0 = no vote. */
+  my_vote: 1 | -1 | 0;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;

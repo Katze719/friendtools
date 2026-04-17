@@ -15,6 +15,7 @@ pub fn routes() -> Router<AppState> {
         .route("/:id", get(handlers::detail).delete(handlers::delete_group))
         // Tool-specific nested routes live under `/:id/<tool>/...`.
         .nest("/:id/splitwise", crate::splitwise::routes())
+        .nest("/:id/trips", crate::trips::routes())
 }
 
 /// Returns Ok if the user is a member of the group, else Forbidden / NotFound.

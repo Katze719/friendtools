@@ -18,6 +18,7 @@ mod error;
 mod groups;
 mod splitwise;
 mod state;
+mod trips;
 
 use state::AppState;
 

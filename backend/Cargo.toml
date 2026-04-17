@@ -37,6 +37,16 @@ dotenvy = "0.15"
 validator = { version = "0.18", features = ["derive"] }
 clap = { version = "4", features = ["derive"] }
 
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "gzip",
+    "brotli",
+    "deflate",
+    "charset",
+] }
+scraper = "0.20"
+url = "2"
+
 [profile.release]
 opt-level = 3
 lto = "thin"

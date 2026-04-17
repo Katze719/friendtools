@@ -1,8 +1,9 @@
 import type { ComponentType } from "react";
-import { Wallet } from "lucide-react";
+import { Plane, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import SplitwiseOverviewPage from "./splitwise/OverviewPage";
 import SplitwiseNewExpensePage from "./splitwise/NewExpensePage";
+import TripsOverviewPage from "./trips/OverviewPage";
 
 export interface ToolRoute {
   /** Path relative to the tool's base within a group
@@ -37,6 +38,15 @@ export const tools: Tool[] = [
       { path: "/", component: SplitwiseOverviewPage },
       { path: "/new-expense", component: SplitwiseNewExpensePage },
     ],
+  },
+  {
+    id: "trips",
+    nameKey: "tools.trips.name",
+    descriptionKey: "tools.trips.description",
+    basePath: "trips",
+    icon: Plane,
+    accent: "bg-sky-500",
+    routes: [{ path: "/", component: TripsOverviewPage }],
   },
 ];
 

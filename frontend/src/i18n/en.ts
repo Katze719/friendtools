@@ -123,6 +123,11 @@ const en = {
       description:
         "Shared expenses for this group - track who paid what, see balances and suggested settlements.",
     },
+    trips: {
+      name: "Trip board",
+      description:
+        "Collect travel links (Airbnb, Booking, blog posts, ...). Each link gets a preview card everyone can see at a glance.",
+    },
   },
   splitwise: {
     overview: {
@@ -164,6 +169,30 @@ const en = {
       errorNoParticipants: "At least one person must participate.",
       submit: "Save",
       submitting: "Saving...",
+    },
+  },
+  trips: {
+    overview: {
+      backToGroup: "Back to group",
+      title: "Trip board",
+      subtitle: "Links the group is considering.",
+      add: "Add link",
+      addTitle: "Add a link",
+      url: "URL",
+      noteOptional: "Note (optional)",
+      notePlaceholder: "What makes this interesting?",
+      addNote: "Add a note",
+      editNote: "Edit your note",
+      refresh: "Refresh preview",
+      like: "Like",
+      dislike: "Dislike",
+      deleteConfirm: "Remove this link from the trip board?",
+      addedBy: "Added by {{name}} on {{date}}",
+      empty: {
+        title: "No links yet",
+        description:
+          "Paste an Airbnb, Booking or blog link - the preview is fetched automatically.",
+      },
     },
   },
   invite: {
