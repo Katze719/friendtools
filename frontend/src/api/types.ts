@@ -104,6 +104,36 @@ export interface TripLink {
   my_vote: 1 | -1 | 0;
 }
 
+export interface CalendarEvent {
+  id: string;
+  group_id: string;
+  title: string;
+  description: string;
+  location: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  created_by: string;
+  created_by_display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShoppingItem {
+  id: string;
+  group_id: string;
+  name: string;
+  quantity: string;
+  note: string;
+  is_done: boolean;
+  done_at: string | null;
+  done_by: string | null;
+  done_by_display_name: string | null;
+  added_by: string;
+  added_by_display_name: string;
+  created_at: string;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;

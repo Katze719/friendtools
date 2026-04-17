@@ -11,11 +11,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 mod admin;
 mod auth;
+mod calendar;
 mod cli;
 mod config;
 mod db;
 mod error;
 mod groups;
+mod shopping;
 mod splitwise;
 mod state;
 mod trips;

@@ -1,6 +1,13 @@
 import type { ComponentType } from "react";
-import { Plane, Wallet } from "lucide-react";
+import {
+  CalendarDays,
+  Plane,
+  ShoppingBasket,
+  Wallet,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import CalendarOverviewPage from "./calendar/OverviewPage";
+import ShoppingOverviewPage from "./shopping/OverviewPage";
 import SplitwiseOverviewPage from "./splitwise/OverviewPage";
 import SplitwiseNewExpensePage from "./splitwise/NewExpensePage";
 import TripsOverviewPage from "./trips/OverviewPage";
@@ -47,6 +54,24 @@ export const tools: Tool[] = [
     icon: Plane,
     accent: "bg-sky-500",
     routes: [{ path: "/", component: TripsOverviewPage }],
+  },
+  {
+    id: "calendar",
+    nameKey: "tools.calendar.name",
+    descriptionKey: "tools.calendar.description",
+    basePath: "calendar",
+    icon: CalendarDays,
+    accent: "bg-violet-500",
+    routes: [{ path: "/", component: CalendarOverviewPage }],
+  },
+  {
+    id: "shopping",
+    nameKey: "tools.shopping.name",
+    descriptionKey: "tools.shopping.description",
+    basePath: "shopping",
+    icon: ShoppingBasket,
+    accent: "bg-amber-500",
+    routes: [{ path: "/", component: ShoppingOverviewPage }],
   },
 ];
 

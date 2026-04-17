@@ -16,6 +16,8 @@ pub fn routes() -> Router<AppState> {
         // Tool-specific nested routes live under `/:id/<tool>/...`.
         .nest("/:id/splitwise", crate::splitwise::routes())
         .nest("/:id/trips", crate::trips::routes())
+        .nest("/:id/calendar", crate::calendar::routes())
+        .nest("/:id/shopping", crate::shopping::routes())
 }
 
 /// Returns Ok if the user is a member of the group, else Forbidden / NotFound.
