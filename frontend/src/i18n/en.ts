@@ -19,6 +19,7 @@ const en = {
   layout: {
     signOut: "Sign out",
     admin: "Admin",
+    menu: "Menu",
     footer: "friendtools - self-hosted for you and your people",
   },
   notFound: {

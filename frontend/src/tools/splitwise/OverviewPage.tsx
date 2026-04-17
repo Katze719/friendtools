@@ -70,16 +70,16 @@ export default function SplitwiseOverviewPage() {
           <ArrowLeft className="h-4 w-4" /> {t("splitwise.overview.backToGroup")}
         </Link>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("splitwise.overview.title")}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="truncate text-sm text-slate-500 dark:text-slate-400">
               {group.name} - {t("splitwise.overview.members", { count: group.members.length })}
             </p>
           </div>
           <button
-            className="btn-primary"
+            className="btn-primary w-full sm:w-auto"
             onClick={() => navigate(`/groups/${group.id}/splitwise/new-expense`)}
           >
             <Plus className="h-4 w-4" /> {t("splitwise.overview.addExpense")}
@@ -179,14 +179,14 @@ export default function SplitwiseOverviewPage() {
             {expenses.map((e) => (
               <li key={e.id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{e.description}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium break-words">{e.description}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {t("splitwise.overview.paidBy", { name: e.paid_by_display_name })} -{" "}
                       {formatDate(e.happened_at)}
                     </p>
                   </div>
-                  <div className="flex items-start gap-2">
+                  <div className="flex shrink-0 items-start gap-2">
                     <span className="tabular-nums font-semibold">
                       {formatMoney(e.amount_cents, currency)}
                     </span>

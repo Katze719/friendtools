@@ -21,6 +21,7 @@ const de: Translations = {
   layout: {
     signOut: "Abmelden",
     admin: "Admin",
+    menu: "Menü",
     footer: "friendtools - selbst gehostet für dich und deine Leute",
   },
   notFound: {

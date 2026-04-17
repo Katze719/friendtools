@@ -62,16 +62,16 @@ export default function TripsOverviewPage() {
           <ArrowLeft className="h-4 w-4" /> {t("trips.overview.backToGroup")}
         </Link>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("trips.overview.title")}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="truncate text-sm text-slate-500 dark:text-slate-400">
               {group.name} - {t("trips.overview.subtitle")}
             </p>
           </div>
           <button
-            className="btn-primary"
+            className="btn-primary w-full sm:w-auto"
             onClick={() => setShowForm((v) => !v)}
             aria-expanded={showForm}
           >

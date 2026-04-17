@@ -40,9 +40,9 @@ export default function Dashboard() {
             </h1>
             <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-300">{t("dashboard.subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full gap-2 sm:w-auto">
             <button
-              className="btn-secondary"
+              className="btn-secondary flex-1 sm:flex-none"
               onClick={() => {
                 setShowJoin((v) => !v);
                 setShowCreate(false);
@@ -51,7 +51,7 @@ export default function Dashboard() {
               <UserPlus className="h-4 w-4" /> {t("dashboard.join")}
             </button>
             <button
-              className="btn-primary"
+              className="btn-primary flex-1 sm:flex-none"
               onClick={() => {
                 setShowCreate((v) => !v);
                 setShowJoin(false);

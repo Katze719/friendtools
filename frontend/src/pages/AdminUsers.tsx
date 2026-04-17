@@ -88,9 +88,9 @@ export default function AdminUsers() {
             return (
               <li key={u.id} className="card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{u.display_name}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-medium">{u.display_name}</p>
                       {u.is_admin && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                           <Crown className="h-3 w-3" /> {t("admin.badgeAdmin")}

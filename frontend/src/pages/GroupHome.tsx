@@ -92,7 +92,7 @@ export default function GroupHome() {
         >
           <ArrowLeft className="h-4 w-4" /> {t("group.backToGroups")}
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="mt-1 break-words text-2xl font-semibold tracking-tight sm:text-3xl">
           {group.name}
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -185,11 +185,11 @@ export default function GroupHome() {
                 readOnly
                 value={inviteUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="input flex-1 truncate font-mono text-xs"
+                className="input min-w-0 flex-1 truncate font-mono text-xs"
                 aria-label={t("group.inviteLink")}
               />
               <button
-                className="btn-ghost -my-1"
+                className="btn-ghost -my-1 shrink-0"
                 onClick={() => onCopy("link")}
                 aria-label={t("group.copyLink")}
                 title={t("group.copyLink")}

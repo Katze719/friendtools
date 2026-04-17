@@ -8,12 +8,45 @@
   #root {
     height: 100%;
   }
+  html,
+  body {
+    overflow-x: clip;
+  }
   body {
     @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Use the dynamic viewport height where available so iOS Safari
+     doesn't clip content when the URL bar shows/hides. */
+  @supports (height: 100dvh) {
+    html,
+    body,
+    #root {
+      height: 100dvh;
+    }
+  }
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 }
 
 @layer components {
+  /* Horizontal padding that respects iOS safe-area in landscape. */
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed;
   }

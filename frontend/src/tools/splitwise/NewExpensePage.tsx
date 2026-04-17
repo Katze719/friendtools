@@ -280,11 +280,19 @@ export default function SplitwiseNewExpensePage() {
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
         )}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-ghost" onClick={() => navigate(-1)}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => navigate(-1)}
+          >
             {t("common.cancel")}
           </button>
-          <button type="submit" className="btn-primary" disabled={submitting}>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={submitting}
+          >
             {submitting
               ? t("splitwise.newExpense.submitting")
               : t("splitwise.newExpense.submit")}
