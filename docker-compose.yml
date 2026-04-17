@@ -28,10 +28,10 @@ services:
       BIND_ADDR: 0.0.0.0:3000
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       RUST_LOG: ${RUST_LOG:-info}
+    # Reachable only inside the compose network (as `backend:3000`).
+    # The frontend's nginx proxies /api/ to it; no host port exposure needed.
     expose:
       - "3000"
-    ports:
-      - "3000:3000"
 
   frontend:
     build:
