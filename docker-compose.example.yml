@@ -13,7 +13,7 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-friendflow} -d ${POSTGRES_DB:-friendflow}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-friendflow} -d ${POSTGRES_DB:-friendflow}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -46,12 +46,13 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
-    # --- Optional: origin TLS (e.g. Cloudflare Origin Certificate) ------------
-    # To terminate TLS at nginx with a Cloudflare Origin Cert (recommended
-    # when Cloudflare proxies your domain and you want SSL mode "Full
-    # (strict)"), uncomment the 443 port and the two volume mounts below,
-    # then follow the TLS section in the README.
+      - "80:80"
+    # --- Production TLS (e.g. Cloudflare Origin Certificate) -----------------
+    # For a public deployment with Cloudflare SSL mode "Full (strict)",
+    # add the 443 mapping and uncomment the volumes below. You need BOTH
+    # 80 and 443 published: Cloudflare may hit either one depending on its
+    # SSL mode, and nginx.tls.conf redirects 80 -> 443.
+    # Drop your origin cert into ./data/tls/origin.pem + origin.key first.
     #
     #   - "443:443"
     # volumes:

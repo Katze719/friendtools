@@ -105,19 +105,21 @@ If you front the domain with Cloudflare (orange cloud), create a free
    ./data/tls/origin.key   # the private key; chmod 600
    ```
 2. In your local `docker-compose.yml` (the one `bootstrap.sh` generated for
-   you), uncomment the TLS block under the `frontend` service:
+   you), extend the `frontend` service so that **both** HTTP and HTTPS are
+   published and `nginx.tls.conf` is mounted:
    ```yaml
    frontend:
      ports:
-       - "8080:80"
+       - "80:80"
        - "443:443"
      volumes:
        - ./data/tls:/etc/nginx/tls:ro
        - ./frontend/nginx.tls.conf:/etc/nginx/conf.d/default.conf:ro
    ```
-   The mounted `nginx.tls.conf` replaces the default config and listens on
-   both 80 (redirect) and 443 (TLS), proxying `/api/` to the backend as
-   before.
+   Both ports must be published. Depending on its SSL mode, Cloudflare may
+   hit port 80 or 443; the mounted `nginx.tls.conf` terminates TLS on 443
+   and 301-redirects port 80 to HTTPS. (Mapping port 80 only while running
+   CF in "Flexible" mode is a common source of 521 errors.)
 3. `docker compose up -d` and hit `https://your-domain/`.
 4. Consider restricting inbound 80/443 on the VPS to
    [Cloudflare's IP ranges](https://www.cloudflare.com/ips/) so scanners
