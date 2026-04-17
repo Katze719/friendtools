@@ -1,4 +1,4 @@
-# friendtools
+# friendflow
 
 A modular, self-hosted web app with genuinely useful tools for a circle of
 friends. Every tool lives inside a **group** (your flat, trip, regular crew,
@@ -46,7 +46,7 @@ system, approve and promote yourself via the backend CLI:
 ```bash
 # 1. Register a normal account via the web UI (you will land on "pending").
 # 2. Promote that account to admin (this also approves it):
-docker compose exec backend friendtools-backend admin promote you@example.com
+docker compose exec backend friendflow-backend admin promote you@example.com
 ```
 
 From then on you can manage everyone else from the **Admin** page in the web
@@ -55,10 +55,10 @@ UI (the shield icon in the header, visible only for admins).
 Other CLI commands:
 
 ```bash
-docker compose exec backend friendtools-backend admin list
-docker compose exec backend friendtools-backend admin approve someone@example.com
-docker compose exec backend friendtools-backend admin demote someone@example.com
-docker compose exec backend friendtools-backend admin delete someone@example.com
+docker compose exec backend friendflow-backend admin list
+docker compose exec backend friendflow-backend admin approve someone@example.com
+docker compose exec backend friendflow-backend admin demote someone@example.com
+docker compose exec backend friendflow-backend admin delete someone@example.com
 ```
 
 ## Project layout
@@ -103,7 +103,7 @@ docker compose exec backend friendtools-backend admin delete someone@example.com
 - Default language: English.
 - Supported languages: English (`en`), German (`de`).
 - The active language is auto-detected from the browser on first visit and
-  then persisted in `localStorage` under `friendtools.lang`.
+  then persisted in `localStorage` under `friendflow.lang`.
 - Users can switch languages via the globe toggle in the header.
 
 ## Security

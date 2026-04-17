@@ -1,5 +1,5 @@
 [package]
-name = "friendtools-backend"
+name = "friendflow-backend"
 version = "0.1.0"
 edition = "2021"
 

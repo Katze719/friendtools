@@ -21,7 +21,7 @@ const en = {
     signOut: "Sign out",
     admin: "Admin",
     menu: "Menu",
-    footer: "friendtools - self-hosted for you and your people",
+    footer: "friendflow - self-hosted for you and your people",
   },
   notFound: {
     title: "Not found",
@@ -107,7 +107,7 @@ const en = {
     showQr: "Show QR code",
     hideQr: "Hide QR code",
     qrHint: "Scan to join this group.",
-    shareText: "Join my group \"{{name}}\" on friendtools",
+    shareText: "Join my group \"{{name}}\" on friendflow",
     inviteHint:
       "Share the code, link or QR with anyone you want to add to this group.",
     delete: "Delete group",

@@ -23,7 +23,7 @@ const de: Translations = {
     signOut: "Abmelden",
     admin: "Admin",
     menu: "Menü",
-    footer: "friendtools - selbst gehostet für dich und deine Leute",
+    footer: "friendflow - selbst gehostet für dich und deine Leute",
   },
   notFound: {
     title: "Nicht gefunden",
@@ -109,7 +109,7 @@ const de: Translations = {
     showQr: "QR-Code anzeigen",
     hideQr: "QR-Code ausblenden",
     qrHint: "Scannen, um der Gruppe beizutreten.",
-    shareText: "Tritt meiner Gruppe \"{{name}}\" auf friendtools bei",
+    shareText: "Tritt meiner Gruppe \"{{name}}\" auf friendflow bei",
     inviteHint:
       "Teile Code, Link oder QR-Code mit allen, die der Gruppe beitreten sollen.",
     delete: "Gruppe löschen",

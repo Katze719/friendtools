@@ -11,7 +11,7 @@ import {
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
-const STORAGE_KEY = "friendtools.theme";
+const STORAGE_KEY = "friendflow.theme";
 
 interface ThemeContextValue {
   /** User preference (what they selected). */

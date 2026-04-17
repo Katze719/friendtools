@@ -1,4 +1,4 @@
-const TOKEN_KEY = "friendtools.token";
+const TOKEN_KEY = "friendflow.token";
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 

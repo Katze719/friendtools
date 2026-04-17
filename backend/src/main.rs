@@ -85,8 +85,8 @@ async fn warn_if_no_admin(pool: &sqlx::PgPool) {
         Ok(0) => {
             tracing::warn!(
                 "no admin user exists yet. Bootstrap one with: \
-                 `friendtools-backend admin promote <email>` \
-                 (for docker: `docker compose exec backend friendtools-backend admin promote <email>`)"
+                 `friendflow-backend admin promote <email>` \
+                 (for docker: `docker compose exec backend friendflow-backend admin promote <email>`)"
             );
         }
         Ok(_) => {}

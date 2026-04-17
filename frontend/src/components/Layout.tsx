@@ -23,7 +23,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
               <Users className="h-4 w-4" />
             </span>
-            <span className="truncate">friendtools</span>
+            <span className="truncate">friendflow</span>
           </Link>
           <div className="flex items-center gap-1 sm:gap-3">
             <div className="hidden items-center gap-3 sm:flex">

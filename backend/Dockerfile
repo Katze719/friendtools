@@ -10,7 +10,7 @@ RUN apt-get update \
 COPY Cargo.toml Cargo.lock* ./
 RUN mkdir -p src && echo "fn main() {}" > src/main.rs \
     && cargo build --release \
-    && rm -rf src target/release/friendtools-backend target/release/deps/friendtools_backend*
+    && rm -rf src target/release/friendflow-backend target/release/deps/friendflow_backend*
 
 COPY . .
 ENV SQLX_OFFLINE=true
@@ -25,10 +25,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 10001 app
 
-COPY --from=builder /app/target/release/friendtools-backend /usr/local/bin/friendtools-backend
+COPY --from=builder /app/target/release/friendflow-backend /usr/local/bin/friendflow-backend
 COPY --from=builder /app/migrations ./migrations
 
 USER app
 EXPOSE 3000
 ENV RUST_LOG=info
-CMD ["/usr/local/bin/friendtools-backend"]
+CMD ["/usr/local/bin/friendflow-backend"]

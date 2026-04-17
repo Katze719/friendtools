@@ -740,7 +740,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "friendtools-backend"
+name = "friendflow-backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",

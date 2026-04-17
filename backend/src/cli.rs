@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use crate::config::Config;
 
 #[derive(Debug, Parser)]
-#[command(name = "friendtools-backend", version, about = "friendtools backend server & admin CLI")]
+#[command(name = "friendflow-backend", version, about = "friendflow backend server & admin CLI")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
