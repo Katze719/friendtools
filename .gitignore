@@ -1,0 +1,36 @@
+# Rust
+/backend/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Node
+/frontend/node_modules
+/frontend/dist
+/frontend/.vite
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker volumes
+/data
+/volumes
+
+# Logs
+*.log
+
+# SQLx offline cache (optional; enable if desired)
+# /backend/.sqlx
