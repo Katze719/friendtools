@@ -68,6 +68,20 @@ pub struct Expense {
     pub splits: Vec<ExpenseSplit>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Payment {
+    pub id: Uuid,
+    pub group_id: Uuid,
+    pub from_user_id: Uuid,
+    pub from_display_name: String,
+    pub to_user_id: Uuid,
+    pub to_display_name: String,
+    pub amount_cents: i64,
+    pub note: Option<String>,
+    pub happened_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
 // ---------- request models ----------
 
 #[derive(Debug, Deserialize)]
@@ -96,6 +110,17 @@ pub struct UpdateExpenseRequest {
     pub paid_by: Uuid,
     pub happened_at: Option<DateTime<Utc>>,
     pub splits: Vec<SplitInput>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreatePaymentRequest {
+    pub from_user: Uuid,
+    pub to_user: Uuid,
+    #[validate(range(min = 1))]
+    pub amount_cents: i64,
+    #[validate(length(max = 200))]
+    pub note: Option<String>,
+    pub happened_at: Option<DateTime<Utc>>,
 }
 
 // ---------- helpers ----------
@@ -214,15 +239,42 @@ pub async fn summary(
         owed.insert(u, v);
     }
 
+    // Payments sent by / received by each user. A payment from X to Y
+    // settles X's debt to Y, so it moves X's balance up and Y's down.
+    let sent_rows: Vec<(Uuid, i64)> = sqlx::query_as(
+        "SELECT from_user, COALESCE(SUM(amount_cents), 0)::BIGINT
+         FROM splitwise_payments WHERE group_id = $1 GROUP BY from_user",
+    )
+    .bind(group_id)
+    .fetch_all(&state.db)
+    .await?;
+    let received_rows: Vec<(Uuid, i64)> = sqlx::query_as(
+        "SELECT to_user, COALESCE(SUM(amount_cents), 0)::BIGINT
+         FROM splitwise_payments WHERE group_id = $1 GROUP BY to_user",
+    )
+    .bind(group_id)
+    .fetch_all(&state.db)
+    .await?;
+    let mut sent: HashMap<Uuid, i64> = HashMap::new();
+    for (u, v) in sent_rows {
+        sent.insert(u, v);
+    }
+    let mut received: HashMap<Uuid, i64> = HashMap::new();
+    for (u, v) in received_rows {
+        received.insert(u, v);
+    }
+
     let balances: Vec<Balance> = members
         .iter()
         .map(|(id, display_name)| {
             let p = paid.get(id).copied().unwrap_or(0);
             let o = owed.get(id).copied().unwrap_or(0);
+            let s = sent.get(id).copied().unwrap_or(0);
+            let r = received.get(id).copied().unwrap_or(0);
             Balance {
                 user_id: *id,
                 display_name: display_name.clone(),
-                balance_cents: p - o,
+                balance_cents: p - o + s - r,
             }
         })
         .collect();
@@ -252,7 +304,7 @@ pub async fn summary(
 
     // Pairwise raw debts derived from every expense: the payer is creditor,
     // every other participant is debtor for their share.
-    let pair_rows: Vec<(Uuid, Uuid, i64)> = sqlx::query_as(
+    let mut pair_rows: Vec<(Uuid, Uuid, i64)> = sqlx::query_as(
         "SELECT es.user_id AS debtor, e.paid_by AS creditor,
                 COALESCE(SUM(es.amount_cents), 0)::BIGINT AS amount
          FROM expense_splits es
@@ -263,6 +315,21 @@ pub async fn summary(
     .bind(group_id)
     .fetch_all(&state.db)
     .await?;
+
+    // A payment from X to Y settles X's debt to Y. Feeding it as a negative
+    // (debtor=X, creditor=Y, -amount) into the netting cancels the matching
+    // debt; overpayments flip the pair automatically.
+    let payment_pair_rows: Vec<(Uuid, Uuid, i64)> = sqlx::query_as(
+        "SELECT from_user, to_user, COALESCE(SUM(amount_cents), 0)::BIGINT
+         FROM splitwise_payments WHERE group_id = $1
+         GROUP BY from_user, to_user",
+    )
+    .bind(group_id)
+    .fetch_all(&state.db)
+    .await?;
+    for (from, to, amount) in payment_pair_rows {
+        pair_rows.push((from, to, -amount));
+    }
 
     let direct_settlements: Vec<Settlement> = net_direct_debts(&pair_rows)
         .into_iter()
@@ -590,4 +657,191 @@ pub async fn delete_expense(
     }
 
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ---------- payments ----------
+
+pub async fn list_payments(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(group_id): Path<Uuid>,
+) -> AppResult<Json<Vec<Payment>>> {
+    ensure_member(&state, group_id, user.id).await?;
+
+    let rows: Vec<(
+        Uuid,
+        Uuid,
+        Uuid,
+        String,
+        Uuid,
+        String,
+        i64,
+        Option<String>,
+        DateTime<Utc>,
+        DateTime<Utc>,
+    )> = sqlx::query_as(
+        "SELECT p.id, p.group_id,
+                p.from_user, uf.display_name,
+                p.to_user,   ut.display_name,
+                p.amount_cents, p.note, p.happened_at, p.created_at
+         FROM splitwise_payments p
+         INNER JOIN users uf ON uf.id = p.from_user
+         INNER JOIN users ut ON ut.id = p.to_user
+         WHERE p.group_id = $1
+         ORDER BY p.happened_at DESC, p.created_at DESC",
+    )
+    .bind(group_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    let out = rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                group_id,
+                from_user_id,
+                from_display_name,
+                to_user_id,
+                to_display_name,
+                amount_cents,
+                note,
+                happened_at,
+                created_at,
+            )| Payment {
+                id,
+                group_id,
+                from_user_id,
+                from_display_name,
+                to_user_id,
+                to_display_name,
+                amount_cents,
+                note,
+                happened_at,
+                created_at,
+            },
+        )
+        .collect();
+
+    Ok(Json(out))
+}
+
+pub async fn create_payment(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(group_id): Path<Uuid>,
+    Json(payload): Json<CreatePaymentRequest>,
+) -> AppResult<Json<Payment>> {
+    payload.validate()?;
+    ensure_member(&state, group_id, user.id).await?;
+
+    if payload.from_user == payload.to_user {
+        return Err(AppError::BadRequest(
+            "from_user and to_user must differ".into(),
+        ));
+    }
+
+    // Both parties must be members of the group.
+    let member_ids: Vec<(Uuid,)> =
+        sqlx::query_as("SELECT user_id FROM group_members WHERE group_id = $1")
+            .bind(group_id)
+            .fetch_all(&state.db)
+            .await?;
+    let member_set: std::collections::HashSet<Uuid> =
+        member_ids.into_iter().map(|(u,)| u).collect();
+    if !member_set.contains(&payload.from_user) {
+        return Err(AppError::BadRequest("from_user is not a member".into()));
+    }
+    if !member_set.contains(&payload.to_user) {
+        return Err(AppError::BadRequest("to_user is not a member".into()));
+    }
+
+    let happened_at = payload.happened_at.unwrap_or_else(Utc::now);
+    let note = payload
+        .note
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned);
+
+    let row: (Uuid,) = sqlx::query_as(
+        "INSERT INTO splitwise_payments
+            (group_id, from_user, to_user, amount_cents, note, happened_at, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id",
+    )
+    .bind(group_id)
+    .bind(payload.from_user)
+    .bind(payload.to_user)
+    .bind(payload.amount_cents)
+    .bind(note)
+    .bind(happened_at)
+    .bind(user.id)
+    .fetch_one(&state.db)
+    .await?;
+
+    load_payment(&state, row.0).await.map(Json)
+}
+
+pub async fn delete_payment(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, payment_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    ensure_member(&state, group_id, user.id).await?;
+
+    let result = sqlx::query(
+        "DELETE FROM splitwise_payments WHERE id = $1 AND group_id = $2",
+    )
+    .bind(payment_id)
+    .bind(group_id)
+    .execute(&state.db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("payment not found".into()));
+    }
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn load_payment(state: &AppState, payment_id: Uuid) -> AppResult<Payment> {
+    let row: (
+        Uuid,
+        Uuid,
+        Uuid,
+        String,
+        Uuid,
+        String,
+        i64,
+        Option<String>,
+        DateTime<Utc>,
+        DateTime<Utc>,
+    ) = sqlx::query_as(
+        "SELECT p.id, p.group_id,
+                p.from_user, uf.display_name,
+                p.to_user,   ut.display_name,
+                p.amount_cents, p.note, p.happened_at, p.created_at
+         FROM splitwise_payments p
+         INNER JOIN users uf ON uf.id = p.from_user
+         INNER JOIN users ut ON ut.id = p.to_user
+         WHERE p.id = $1",
+    )
+    .bind(payment_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("payment not found".into()))?;
+
+    Ok(Payment {
+        id: row.0,
+        group_id: row.1,
+        from_user_id: row.2,
+        from_display_name: row.3,
+        to_user_id: row.4,
+        to_display_name: row.5,
+        amount_cents: row.6,
+        note: row.7,
+        happened_at: row.8,
+        created_at: row.9,
+    })
 }

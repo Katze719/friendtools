@@ -1,11 +1,19 @@
 import { api } from "../../api/client";
-import type { Expense, SplitwiseSummary } from "../../api/types";
+import type { Expense, Payment, SplitwiseSummary } from "../../api/types";
 
 export interface ExpenseInput {
   description: string;
   amount_cents: number;
   paid_by: string;
   splits: { user_id: string; amount_cents: number }[];
+  happened_at?: string;
+}
+
+export interface PaymentInput {
+  from_user: string;
+  to_user: string;
+  amount_cents: number;
+  note?: string;
   happened_at?: string;
 }
 
@@ -29,6 +37,19 @@ export const splitwiseApi = {
   deleteExpense: (groupId: string, expenseId: string) =>
     api<{ ok: boolean }>(
       `/api/groups/${groupId}/splitwise/expenses/${expenseId}`,
+      { method: "DELETE" },
+    ),
+
+  listPayments: (groupId: string) =>
+    api<Payment[]>(`/api/groups/${groupId}/splitwise/payments`),
+  createPayment: (groupId: string, payload: PaymentInput) =>
+    api<Payment>(`/api/groups/${groupId}/splitwise/payments`, {
+      method: "POST",
+      body: payload,
+    }),
+  deletePayment: (groupId: string, paymentId: string) =>
+    api<{ ok: boolean }>(
+      `/api/groups/${groupId}/splitwise/payments/${paymentId}`,
       { method: "DELETE" },
     ),
 };

@@ -89,6 +89,19 @@ export interface Expense {
   splits: ExpenseSplit[];
 }
 
+export interface Payment {
+  id: string;
+  group_id: string;
+  from_user_id: string;
+  from_display_name: string;
+  to_user_id: string;
+  to_display_name: string;
+  amount_cents: number;
+  note: string | null;
+  happened_at: string;
+  created_at: string;
+}
+
 export interface TripLink {
   id: string;
   url: string;
