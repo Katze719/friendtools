@@ -125,6 +125,10 @@ const en = {
       description:
         "Tools like a betting pool, secret santa or a chore rotation can be added as modules. See the README.",
     },
+    toolFavorite: {
+      add: "Pin to top",
+      remove: "Unpin",
+    },
   },
   tools: {
     splitwise: {
@@ -162,17 +166,40 @@ const en = {
       balances: "Balances",
       you: "you",
       settlementsTitle: "Suggestion: how to settle up",
+      allSettled: "Everyone is square - nothing to transfer.",
+      viewAria: "Settlement view",
+      viewList: "List",
+      viewGraph: "Graph",
+      modeAria: "Settlement mode",
+      modeSimplified: "Simplified",
+      modeSimplifiedHint:
+        "Minimum number of transfers. Somebody may pay a person they never owed directly.",
+      modeDirect: "Direct",
+      modeDirectHint:
+        "Only pay people you actually owe. Debts between the same pair cancel out.",
+      graph: {
+        aria: "Cashflow graph",
+        settled: "Nothing to show - everyone is settled.",
+        onlyOne: "{{name}} is the only person with an open balance.",
+      },
       expenses: "Expenses",
       noExpenses: "No expenses yet. Add your first one!",
       paidBy: "paid by {{name}}",
+      youLent: "you lent {{amount}}",
+      youBorrowed: "you borrowed {{amount}}",
+      selfPaid: "just for you",
+      notInvolved: "not involved",
       breakdown: "Breakdown",
       deleteConfirm: 'Really delete the expense "{{description}}"?',
       deleteTooltip: "Delete",
       deleteAria: "Delete expense",
+      editTooltip: "Edit",
+      editAria: "Edit expense",
     },
     newExpense: {
       back: "Back to ledger",
       title: "New expense",
+      editTitle: "Edit expense",
       description: "Description",
       descriptionPlaceholder: "e.g. Pizza last night",
       amount: "Amount ({{currency}})",

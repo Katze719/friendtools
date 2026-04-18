@@ -44,6 +44,7 @@ export const tools: Tool[] = [
     routes: [
       { path: "/", component: SplitwiseOverviewPage },
       { path: "/new-expense", component: SplitwiseNewExpensePage },
+      { path: "/expenses/:expenseId/edit", component: SplitwiseNewExpensePage },
     ],
   },
   {

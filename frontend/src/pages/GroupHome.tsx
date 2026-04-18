@@ -1,4 +1,13 @@
-import { ArrowLeft, ArrowRight, Copy, Link2, LogOut, Share2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  Link2,
+  LogOut,
+  Share2,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +17,7 @@ import { groupsApi } from "../api/groups";
 import type { GroupDetail } from "../api/types";
 import { formatDate } from "../lib/format";
 import { toolPath, tools } from "../tools";
+import { useFavoriteTools } from "../tools/useFavoriteTools";
 
 export default function GroupHome() {
   const { t } = useTranslation();
@@ -17,6 +27,17 @@ export default function GroupHome() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const { isFavorite, toggle: toggleFavorite } = useFavoriteTools();
+
+  // Favorites first, otherwise preserve the declaration order from `tools`.
+  const orderedTools = useMemo(() => {
+    return [...tools].sort((a, b) => {
+      const af = isFavorite(a.id) ? 0 : 1;
+      const bf = isFavorite(b.id) ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return tools.indexOf(a) - tools.indexOf(b);
+    });
+  }, [isFavorite]);
 
   const inviteUrl = useMemo(() => {
     if (!group) return "";
@@ -114,33 +135,73 @@ export default function GroupHome() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">{t("group.tools")}</h2>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {tools.map((tool) => {
+          {orderedTools.map((tool) => {
             const Icon = tool.icon;
+            const fav = isFavorite(tool.id);
             return (
-              <Link
-                key={tool.id}
-                to={toolPath(group.id, tool)}
-                className="card group flex flex-col gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-white ${tool.accent}`}
-                  >
-                    <Icon className="h-5 w-5" />
+              <li key={tool.id} className="relative">
+                <Link
+                  to={toolPath(group.id, tool)}
+                  className="card group flex h-full flex-col gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-center gap-3 pr-8">
+                    <span
+                      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-white ${tool.accent}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {t(tool.nameKey)}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {t(tool.descriptionKey)}
+                  </p>
+                  <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-brand-600 group-hover:gap-2 transition-all dark:text-brand-400">
+                    {t("group.open")} <ArrowRight className="h-4 w-4" />
                   </span>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t(tool.nameKey)}</h3>
-                </div>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{t(tool.descriptionKey)}</p>
-                <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-brand-600 group-hover:gap-2 transition-all dark:text-brand-400">
-                  {t("group.open")} <ArrowRight className="h-4 w-4" />
-                </span>
-              </Link>
+                </Link>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleFavorite(tool.id);
+                  }}
+                  aria-pressed={fav}
+                  aria-label={
+                    fav
+                      ? t("group.toolFavorite.remove")
+                      : t("group.toolFavorite.add")
+                  }
+                  title={
+                    fav
+                      ? t("group.toolFavorite.remove")
+                      : t("group.toolFavorite.add")
+                  }
+                  className={`absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                    fav
+                      ? "text-amber-500 dark:text-amber-400"
+                      : "text-slate-300 hover:text-amber-500 dark:text-slate-600 dark:hover:text-amber-400"
+                  }`}
+                >
+                  <Star
+                    className="h-5 w-5"
+                    fill={fav ? "currentColor" : "none"}
+                    strokeWidth={fav ? 1.5 : 2}
+                  />
+                </button>
+              </li>
             );
           })}
-          <div className="card flex flex-col items-start gap-2 p-5 ring-dashed ring-2 ring-slate-200 bg-slate-50/60 dark:ring-slate-700 dark:bg-slate-900/40">
-            <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">{t("group.more.title")}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t("group.more.description")}</p>
-          </div>
+          <li className="card flex flex-col items-start gap-2 p-5 ring-dashed ring-2 ring-slate-200 bg-slate-50/60 dark:ring-slate-700 dark:bg-slate-900/40">
+            <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">
+              {t("group.more.title")}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("group.more.description")}
+            </p>
+          </li>
         </ul>
       </section>
 

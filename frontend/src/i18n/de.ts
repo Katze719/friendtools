@@ -127,6 +127,10 @@ const de: Translations = {
       description:
         "Weitere Tools (Tippspiel, Wichteln, Putzplan, ...) können als Module ergänzt werden. Siehe README.",
     },
+    toolFavorite: {
+      add: "Oben anpinnen",
+      remove: "Lösen",
+    },
   },
   tools: {
     splitwise: {
@@ -164,17 +168,40 @@ const de: Translations = {
       balances: "Salden",
       you: "du",
       settlementsTitle: "Vorschlag: wer zahlt wem?",
+      allSettled: "Alle ausgeglichen - nichts zu überweisen.",
+      viewAria: "Ansicht",
+      viewList: "Liste",
+      viewGraph: "Graph",
+      modeAria: "Abrechnungsmodus",
+      modeSimplified: "Vereinfacht",
+      modeSimplifiedHint:
+        "Möglichst wenige Überweisungen. Eventuell zahlst du an jemanden, dem du nie direkt Geld geschuldet hast.",
+      modeDirect: "Direkt",
+      modeDirectHint:
+        "Nur an Personen zahlen, denen du wirklich was schuldest. Gegenseitige Beträge werden verrechnet.",
+      graph: {
+        aria: "Geldfluss-Graph",
+        settled: "Nichts anzuzeigen - alle ausgeglichen.",
+        onlyOne: "Nur {{name}} hat noch einen offenen Betrag.",
+      },
       expenses: "Ausgaben",
       noExpenses: "Noch keine Ausgaben. Leg die erste an!",
       paidBy: "gezahlt von {{name}}",
+      youLent: "du hast {{amount}} ausgelegt",
+      youBorrowed: "du schuldest {{amount}}",
+      selfPaid: "nur für dich",
+      notInvolved: "nicht beteiligt",
       breakdown: "Aufteilung",
       deleteConfirm: 'Ausgabe "{{description}}" wirklich löschen?',
       deleteTooltip: "Löschen",
       deleteAria: "Ausgabe löschen",
+      editTooltip: "Bearbeiten",
+      editAria: "Ausgabe bearbeiten",
     },
     newExpense: {
       back: "Zum Kassenbuch",
       title: "Neue Ausgabe",
+      editTitle: "Ausgabe bearbeiten",
       description: "Beschreibung",
       descriptionPlaceholder: "z.B. Pizza am Abend",
       amount: "Betrag ({{currency}})",

@@ -11,13 +11,22 @@ import { splitwiseApi } from "./api";
 
 type SplitMode = "equal" | "exact";
 
+function centsToInput(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 export default function SplitwiseNewExpensePage() {
   const { t } = useTranslation();
-  const { groupId } = useParams<{ groupId: string }>();
+  const { groupId, expenseId } = useParams<{
+    groupId: string;
+    expenseId?: string;
+  }>();
+  const isEditing = Boolean(expenseId);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [description, setDescription] = useState("");
   const [amountInput, setAmountInput] = useState("");
@@ -29,15 +38,55 @@ export default function SplitwiseNewExpensePage() {
 
   useEffect(() => {
     if (!groupId) return;
-    groupsApi
-      .get(groupId)
-      .then((g) => {
+    let cancelled = false;
+    setLoading(true);
+
+    const tasks: [
+      ReturnType<typeof groupsApi.get>,
+      ReturnType<typeof splitwiseApi.getExpense> | null,
+    ] = [
+      groupsApi.get(groupId),
+      expenseId ? splitwiseApi.getExpense(groupId, expenseId) : null,
+    ];
+
+    Promise.all(tasks)
+      .then(([g, expense]) => {
+        if (cancelled) return;
         setGroup(g);
-        setPaidBy(user?.id ?? g.members[0]?.id ?? "");
-        setParticipants(new Set(g.members.map((m) => m.id)));
+        if (expense) {
+          setDescription(expense.description);
+          setAmountInput(centsToInput(expense.amount_cents));
+          setPaidBy(expense.paid_by);
+          const splitMap: Record<string, string> = {};
+          const activeIds = new Set<string>();
+          for (const s of expense.splits) {
+            if (s.amount_cents > 0) {
+              splitMap[s.user_id] = centsToInput(s.amount_cents);
+              activeIds.add(s.user_id);
+            }
+          }
+          setExactAmounts(splitMap);
+          setParticipants(activeIds);
+          // "Exact" is safe for any existing split distribution; the user
+          // can always flip to "Equal" to redistribute.
+          setMode("exact");
+        } else {
+          setPaidBy(user?.id ?? g.members[0]?.id ?? "");
+          setParticipants(new Set(g.members.map((m) => m.id)));
+        }
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : t("common.error")));
-  }, [groupId, user?.id, t]);
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof ApiError ? e.message : t("common.error"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId, expenseId, user?.id, t]);
 
   const amountCents = useMemo(() => parseAmountToCents(amountInput), [amountInput]);
 
@@ -95,12 +144,17 @@ export default function SplitwiseNewExpensePage() {
 
     setSubmitting(true);
     try {
-      await splitwiseApi.createExpense(groupId, {
+      const payload = {
         description: description.trim(),
         amount_cents: amountCents,
         paid_by: paidBy,
         splits,
-      });
+      };
+      if (isEditing && expenseId) {
+        await splitwiseApi.updateExpense(groupId, expenseId, payload);
+      } else {
+        await splitwiseApi.createExpense(groupId, payload);
+      }
       navigate(`/groups/${groupId}/splitwise`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("common.error"));
@@ -114,7 +168,8 @@ export default function SplitwiseNewExpensePage() {
       <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
     );
   }
-  if (!group) return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+  if (!group || loading)
+    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
 
   return (
     <div className="space-y-5">
@@ -126,7 +181,9 @@ export default function SplitwiseNewExpensePage() {
           <ArrowLeft className="h-4 w-4" /> {t("splitwise.newExpense.back")}
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {t("splitwise.newExpense.title")}
+          {isEditing
+            ? t("splitwise.newExpense.editTitle")
+            : t("splitwise.newExpense.title")}
         </h1>
       </div>
 

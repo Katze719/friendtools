@@ -64,7 +64,10 @@ export interface Settlement {
 export interface SplitwiseSummary {
   currency: string;
   balances: Balance[];
+  /** Minimum-transaction settlement plan (A may pay C directly). */
   settlements: Settlement[];
+  /** Pairwise debts as they arose from expenses, netted per pair. */
+  direct_settlements: Settlement[];
   my_balance_cents: number;
 }
 

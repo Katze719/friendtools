@@ -1,9 +1,6 @@
 pub mod handlers;
 
-use axum::{
-    routing::{delete, get},
-    Router,
-};
+use axum::{routing::get, Router};
 
 use crate::state::AppState;
 
@@ -15,6 +12,11 @@ pub fn routes() -> Router<AppState> {
             "/expenses",
             get(handlers::list_expenses).post(handlers::create_expense),
         )
-        .route("/expenses/:expense_id", delete(handlers::delete_expense))
+        .route(
+            "/expenses/:expense_id",
+            get(handlers::get_expense)
+                .put(handlers::update_expense)
+                .delete(handlers::delete_expense),
+        )
         .route("/summary", get(handlers::summary))
 }
