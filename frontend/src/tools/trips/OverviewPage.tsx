@@ -19,6 +19,7 @@ import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, TripFolder, TripLink } from "../../api/types";
 import { formatDate } from "../../lib/format";
+import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tripsApi } from "./api";
 
 /**
@@ -291,20 +292,25 @@ function FolderSection({
     setName(section.name);
   }, [section.name]);
 
+  const confirm = useConfirm();
+  const toast = useToast();
+
   async function onDeleteFolder() {
     if (!section.folder) return;
-    if (
-      !confirm(
-        t("trips.overview.folder.deleteConfirm", { name: section.folder.name }),
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: t("trips.overview.folder.deleteTitle"),
+      message: t("trips.overview.folder.deleteConfirm", {
+        name: section.folder.name,
+      }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await tripsApi.deleteFolder(groupId, section.folder.id);
       onChanged();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 
@@ -318,7 +324,7 @@ function FolderSection({
       setRenaming(false);
       onChanged();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : t("common.error"));
+      toast.error(err instanceof ApiError ? err.message : t("common.error"));
     }
   }
 
@@ -458,6 +464,8 @@ function LinkCard({
   onReplace: (updated: TripLink) => void;
 }) {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [busy, setBusy] = useState<null | "delete" | "refresh" | "move">(null);
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(link.note);
@@ -487,7 +495,7 @@ function LinkCard({
       onReplace(updated);
     } catch (e) {
       onReplace(link);
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setVotingBusy(false);
     }
@@ -511,13 +519,19 @@ function LinkCard({
   }, [link.url]);
 
   async function onDelete() {
-    if (!confirm(t("trips.overview.deleteConfirm"))) return;
+    const ok = await confirm({
+      title: t("trips.overview.deleteTitle"),
+      message: t("trips.overview.deleteConfirm"),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     setBusy("delete");
     try {
       await tripsApi.remove(groupId, link.id);
       onChanged();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(null);
     }
@@ -529,7 +543,7 @@ function LinkCard({
       await tripsApi.refresh(groupId, link.id);
       onChanged();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(null);
     }
@@ -542,7 +556,7 @@ function LinkCard({
       const updated = await tripsApi.moveLink(groupId, link.id, folderId);
       onReplace(updated);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(null);
     }
@@ -555,7 +569,7 @@ function LinkCard({
       setEditing(false);
       onChanged();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : t("common.error"));
+      toast.error(err instanceof ApiError ? err.message : t("common.error"));
     }
   }
 

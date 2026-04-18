@@ -13,6 +13,8 @@ const de: Translations = {
     copied: "Kopiert",
     language: "Sprache",
     close: "Schließen",
+    confirm: "Bestätigen",
+    dismiss: "Schließen",
   },
   install: {
     cta: "App installieren",
@@ -126,10 +128,12 @@ const de: Translations = {
       "Teile Code, Link oder QR-Code mit allen, die der Gruppe beitreten sollen.",
     delete: "Gruppe löschen",
     deleteHint: "Löscht die Gruppe und alle Tool-Daten unwiderruflich.",
+    deleteTitle: "Gruppe löschen?",
     deleteConfirm: '"{{name}}" und alle Daten wirklich löschen?',
     leave: "Gruppe verlassen",
     leaveHint:
       "Die Gruppe verschwindet aus deinem Dashboard. Mit einem neuen Invite kannst du jederzeit wieder beitreten.",
+    leaveTitle: "Gruppe verlassen?",
     leaveConfirm:
       '"{{name}}" wirklich verlassen? Für einen Rückkehr brauchst du einen neuen Invite.',
     ownerActionsHint:
@@ -204,6 +208,7 @@ const de: Translations = {
       selfPaid: "nur für dich",
       notInvolved: "nicht beteiligt",
       breakdown: "Aufteilung",
+      deleteTitle: "Ausgabe löschen?",
       deleteConfirm: 'Ausgabe "{{description}}" wirklich löschen?',
       deleteTooltip: "Löschen",
       deleteAria: "Ausgabe löschen",
@@ -218,6 +223,7 @@ const de: Translations = {
       paymentTitle: "{{from}} hat {{to}} bezahlt",
       paymentYouPaid: "Du hast {{name}} bezahlt",
       paymentYouReceived: "{{name}} hat dich bezahlt",
+      paymentDeleteTitle: "Zahlung löschen?",
       paymentDeleteConfirm: "Diese Zahlung wirklich löschen?",
       paymentDeleteAria: "Zahlung löschen",
     },
@@ -274,6 +280,7 @@ const de: Translations = {
       refresh: "Vorschau aktualisieren",
       like: "Gefällt mir",
       dislike: "Gefällt mir nicht",
+      deleteTitle: "Link entfernen?",
       deleteConfirm: "Diesen Link vom Board entfernen?",
       addedBy: "Von {{name}} am {{date}} hinzugefügt",
       empty: {
@@ -291,6 +298,7 @@ const de: Translations = {
         renameAria: "Ordner umbenennen",
         delete: "Ordner löschen",
         deleteAria: "Ordner löschen",
+        deleteTitle: "Ordner löschen?",
         deleteConfirm:
           'Ordner "{{name}}" löschen? Die Links wandern zurück nach "Ohne Ordner".',
         empty: "Noch keine Links in diesem Ordner.",
@@ -334,6 +342,7 @@ const de: Translations = {
         description:
           "Teil den nächsten Abend, Trip oder Probetermin mit der Gruppe.",
       },
+      deleteTitle: "Termin löschen?",
       deleteConfirm: 'Termin "{{title}}" wirklich löschen?',
       errorInvalidStart: "Bitte ein gültiges Startdatum samt Uhrzeit wählen.",
       errorInvalidEnd:
@@ -369,12 +378,14 @@ const de: Translations = {
       doneTitle_other: "Erledigt ({{count}})",
       allDone: "Alles erledigt - gut gemacht!",
       clearDone: "Erledigte entfernen",
+      clearTitle: "Erledigte Artikel entfernen?",
       clearConfirm_one: "{{count}} erledigten Artikel entfernen?",
       clearConfirm_other: "{{count}} erledigte Artikel entfernen?",
       markDone: "Als gekauft markieren",
       markOpen: "Wieder als offen markieren",
       addedBy: "von {{name}}",
       doneBy: "gekauft von {{name}}",
+      deleteTitle: "Artikel löschen?",
       deleteConfirm: '"{{name}}" wirklich löschen?',
       empty: {
         title: "Noch keine Einträge",
@@ -399,6 +410,7 @@ const de: Translations = {
     promote: "Zum Admin machen",
     demote: "Admin-Rechte entziehen",
     delete: "Nutzer löschen",
+    deleteTitle: "Nutzer löschen?",
     deleteConfirm:
       "Diesen Nutzer wirklich löschen? Das geht nur, wenn er/sie noch keine Gruppen oder Ausgaben angelegt hat.",
     badgeAdmin: "Admin",

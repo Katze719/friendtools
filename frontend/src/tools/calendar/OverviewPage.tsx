@@ -20,6 +20,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { CalendarEvent, GroupDetail } from "../../api/types";
+import { useConfirm, useToast } from "../../ui/UIProvider";
 import DayPicker from "../../components/DayPicker";
 import MonthCalendar, {
   type DayBadge,
@@ -401,6 +402,8 @@ function EventCard({
   anchorDay?: Date;
 }) {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
 
   const startDate = new Date(event.starts_at);
@@ -437,15 +440,19 @@ function EventCard({
   }
 
   async function onDelete() {
-    if (!confirm(t("calendar.overview.deleteConfirm", { title: event.title }))) {
-      return;
-    }
+    const ok = await confirm({
+      title: t("calendar.overview.deleteTitle"),
+      message: t("calendar.overview.deleteConfirm", { title: event.title }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await calendarApi.remove(groupId, event.id);
       onChanged();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }

@@ -19,11 +19,14 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, ShoppingItem } from "../../api/types";
+import { useConfirm, useToast } from "../../ui/UIProvider";
 import { shoppingApi } from "./api";
 
 export default function ShoppingOverviewPage() {
   const { t } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [items, setItems] = useState<ShoppingItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,15 +73,19 @@ export default function ShoppingOverviewPage() {
   async function onClearDone() {
     if (!groupId) return;
     if (done.length === 0) return;
-    if (!confirm(t("shopping.overview.clearConfirm", { count: done.length }))) {
-      return;
-    }
+    const ok = await confirm({
+      title: t("shopping.overview.clearTitle"),
+      message: t("shopping.overview.clearConfirm", { count: done.length }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     setClearing(true);
     try {
       await shoppingApi.clearDone(groupId);
       setItems((prev) => (prev ? prev.filter((i) => !i.is_done) : prev));
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setClearing(false);
     }
@@ -280,6 +287,8 @@ function ItemRow({
   onRemove: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
@@ -302,20 +311,26 @@ function ItemRow({
       onReplace(updated);
     } catch (e) {
       onReplace(item);
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
   }
 
   async function onDelete() {
-    if (!confirm(t("shopping.overview.deleteConfirm", { name: item.name }))) return;
+    const ok = await confirm({
+      title: t("shopping.overview.deleteTitle"),
+      message: t("shopping.overview.deleteConfirm", { name: item.name }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await shoppingApi.remove(groupId, item.id);
       onRemove(item.id);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -335,7 +350,7 @@ function ItemRow({
       onReplace(updated);
       setEditing(false);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : t("common.error"));
+      toast.error(err instanceof ApiError ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }

@@ -22,6 +22,7 @@ import type {
 } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
 import { formatDateTime, formatMoney } from "../../lib/format";
+import { useConfirm, useToast } from "../../ui/UIProvider";
 import CashflowGraph from "./CashflowGraph";
 import PaymentDialog from "./PaymentDialog";
 import { splitwiseApi } from "./api";
@@ -38,6 +39,8 @@ export default function SplitwiseOverviewPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [summary, setSummary] = useState<SplitwiseSummary | null>(null);
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
@@ -105,25 +108,37 @@ export default function SplitwiseOverviewPage() {
 
   async function onDelete(exp: Expense) {
     if (!groupId) return;
-    if (!confirm(t("splitwise.overview.deleteConfirm", { description: exp.description }))) {
-      return;
-    }
+    const ok = await confirm({
+      title: t("splitwise.overview.deleteTitle"),
+      message: t("splitwise.overview.deleteConfirm", {
+        description: exp.description,
+      }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await splitwiseApi.deleteExpense(groupId, exp.id);
       reload();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 
   async function onDeletePayment(p: Payment) {
     if (!groupId) return;
-    if (!confirm(t("splitwise.overview.paymentDeleteConfirm"))) return;
+    const ok = await confirm({
+      title: t("splitwise.overview.paymentDeleteTitle"),
+      message: t("splitwise.overview.paymentDeleteConfirm"),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await splitwiseApi.deletePayment(groupId, p.id);
       reload();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 

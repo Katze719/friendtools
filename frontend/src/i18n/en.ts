@@ -11,6 +11,8 @@ const en = {
     copied: "Copied",
     language: "Language",
     close: "Close",
+    confirm: "Confirm",
+    dismiss: "Dismiss",
   },
   install: {
     cta: "Install app",
@@ -124,10 +126,12 @@ const en = {
       "Share the code, link or QR with anyone you want to add to this group.",
     delete: "Delete group",
     deleteHint: "Permanently deletes the group and all its tool data.",
+    deleteTitle: "Delete group?",
     deleteConfirm: 'Really delete "{{name}}" and all its data?',
     leave: "Leave group",
     leaveHint:
       "You'll stop seeing this group on your dashboard. Rejoin any time with a new invite.",
+    leaveTitle: "Leave group?",
     leaveConfirm:
       'Leave "{{name}}"? You will need a new invite to come back.',
     ownerActionsHint:
@@ -202,6 +206,7 @@ const en = {
       selfPaid: "just for you",
       notInvolved: "not involved",
       breakdown: "Breakdown",
+      deleteTitle: "Delete expense?",
       deleteConfirm: 'Really delete the expense "{{description}}"?',
       deleteTooltip: "Delete",
       deleteAria: "Delete expense",
@@ -216,6 +221,7 @@ const en = {
       paymentTitle: "{{from}} paid {{to}}",
       paymentYouPaid: "You paid {{name}}",
       paymentYouReceived: "{{name}} paid you",
+      paymentDeleteTitle: "Delete payment?",
       paymentDeleteConfirm: "Really delete this payment?",
       paymentDeleteAria: "Delete payment",
     },
@@ -271,6 +277,7 @@ const en = {
       refresh: "Refresh preview",
       like: "Like",
       dislike: "Dislike",
+      deleteTitle: "Remove link?",
       deleteConfirm: "Remove this link from the trip board?",
       addedBy: "Added by {{name}} on {{date}}",
       empty: {
@@ -288,6 +295,7 @@ const en = {
         renameAria: "Rename folder",
         delete: "Delete folder",
         deleteAria: "Delete folder",
+        deleteTitle: "Delete folder?",
         deleteConfirm:
           'Delete folder "{{name}}"? Its links move back to "Unsorted".',
         empty: "No links in this folder yet.",
@@ -331,6 +339,7 @@ const en = {
         description:
           "Share your next dinner, trip or rehearsal date with the group.",
       },
+      deleteTitle: "Delete event?",
       deleteConfirm: 'Really delete the event "{{title}}"?',
       errorInvalidStart: "Please pick a valid start date and time.",
       errorInvalidEnd: "Please pick a valid end date and time, or leave it empty.",
@@ -365,12 +374,14 @@ const en = {
       doneTitle_other: "Done ({{count}})",
       allDone: "All done - great work!",
       clearDone: "Clear done",
+      clearTitle: "Clear completed items?",
       clearConfirm_one: "Remove {{count}} completed item?",
       clearConfirm_other: "Remove {{count}} completed items?",
       markDone: "Mark as bought",
       markOpen: "Mark as still needed",
       addedBy: "by {{name}}",
       doneBy: "bought by {{name}}",
+      deleteTitle: "Delete item?",
       deleteConfirm: 'Really delete "{{name}}"?',
       empty: {
         title: "No items yet",
@@ -395,6 +406,7 @@ const en = {
     promote: "Make admin",
     demote: "Remove admin",
     delete: "Delete user",
+    deleteTitle: "Delete user?",
     deleteConfirm:
       "Really delete this user? This only works if they don't own any groups or expenses yet.",
     badgeAdmin: "Admin",

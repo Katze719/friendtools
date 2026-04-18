@@ -18,11 +18,14 @@ import type { GroupDetail } from "../api/types";
 import { formatDate } from "../lib/format";
 import { toolPath, tools } from "../tools";
 import { useFavoriteTools } from "../tools/useFavoriteTools";
+import { useConfirm, useToast } from "../ui/UIProvider";
 
 export default function GroupHome() {
   const { t } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
@@ -88,23 +91,35 @@ export default function GroupHome() {
 
   async function onDelete() {
     if (!group) return;
-    if (!confirm(t("group.deleteConfirm", { name: group.name }))) return;
+    const ok = await confirm({
+      title: t("group.deleteTitle"),
+      message: t("group.deleteConfirm", { name: group.name }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await groupsApi.delete(group.id);
       navigate("/");
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 
   async function onLeave() {
     if (!group) return;
-    if (!confirm(t("group.leaveConfirm", { name: group.name }))) return;
+    const ok = await confirm({
+      title: t("group.leaveTitle"),
+      message: t("group.leaveConfirm", { name: group.name }),
+      confirmLabel: t("group.leave"),
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await groupsApi.leave(group.id);
       navigate("/");
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : t("common.error"));
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 

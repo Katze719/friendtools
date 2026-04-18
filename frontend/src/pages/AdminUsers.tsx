@@ -7,12 +7,14 @@ import { ApiError } from "../api/client";
 import type { AdminUserRow } from "../api/types";
 import { useAuth } from "../context/AuthContext";
 import { formatDate } from "../lib/format";
+import { useConfirm } from "../ui/UIProvider";
 
 type StatusFilter = "all" | "pending" | "approved" | "admin";
 
 export default function AdminUsers() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [users, setUsers] = useState<AdminUserRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -62,19 +64,22 @@ export default function AdminUsers() {
   }
 
   async function act(id: string, action: "approve" | "promote" | "demote" | "delete") {
+    if (action === "delete") {
+      const ok = await confirm({
+        title: t("admin.deleteTitle"),
+        message: t("admin.deleteConfirm"),
+        confirmLabel: t("common.delete"),
+        variant: "danger",
+      });
+      if (!ok) return;
+    }
     setBusy(id + ":" + action);
     setError(null);
     try {
       if (action === "approve") await adminApi.approve(id);
       else if (action === "promote") await adminApi.promote(id);
       else if (action === "demote") await adminApi.demote(id);
-      else if (action === "delete") {
-        if (!confirm(t("admin.deleteConfirm"))) {
-          setBusy(null);
-          return;
-        }
-        await adminApi.remove(id);
-      }
+      else if (action === "delete") await adminApi.remove(id);
       reload();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("common.error"));
