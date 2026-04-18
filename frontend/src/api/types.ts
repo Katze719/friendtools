@@ -109,6 +109,10 @@ export interface TripLink {
   description: string | null;
   image_url: string | null;
   site_name: string | null;
+  /** Manual overrides set by the user when the unfurl didn't produce a good
+   * title or image. Prefer these over `title` / `image_url` when rendering. */
+  title_override: string | null;
+  image_override: string | null;
   note: string;
   added_by: string;
   added_by_display_name: string;
@@ -121,6 +125,7 @@ export interface TripLink {
   /** Null means the link lives in the implicit "Unsorted" bucket. */
   folder_id: string | null;
   folder_name: string | null;
+  position: number;
 }
 
 export interface TripFolder {
@@ -130,6 +135,58 @@ export interface TripFolder {
   created_by_display_name: string;
   created_at: string;
   link_count: number;
+}
+
+export interface TripDestination {
+  name: string;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export interface TripInfo {
+  group_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: TripDestination[];
+  budget_cents: number | null;
+  updated_at: string;
+}
+
+export interface TripPackingItem {
+  id: string;
+  group_id: string;
+  name: string;
+  quantity: string;
+  category: string;
+  is_packed: boolean;
+  assigned_to: string | null;
+  assigned_to_display_name: string | null;
+  position: number;
+  created_by: string;
+  created_by_display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TripItineraryItem {
+  id: string;
+  group_id: string;
+  /** ISO date (YYYY-MM-DD) */
+  day_date: string;
+  title: string;
+  /** HH:MM:SS or HH:MM */
+  start_time: string | null;
+  end_time: string | null;
+  location: string;
+  note: string;
+  link_id: string | null;
+  link_title: string | null;
+  link_url: string | null;
+  position: number;
+  created_by: string;
+  created_by_display_name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CalendarEvent {

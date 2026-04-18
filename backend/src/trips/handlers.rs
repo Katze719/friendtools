@@ -24,6 +24,10 @@ pub struct TripLink {
     pub description: Option<String>,
     pub image_url: Option<String>,
     pub site_name: Option<String>,
+    /// Manual overrides applied when the unfurl didn't produce a good title
+    /// or image. The UI prefers these over the scraped values when set.
+    pub title_override: Option<String>,
+    pub image_override: Option<String>,
     pub note: String,
     pub added_by: Uuid,
     pub added_by_display_name: String,
@@ -36,6 +40,8 @@ pub struct TripLink {
     /// Folder this link is organized into. Null means "unsorted".
     pub folder_id: Option<Uuid>,
     pub folder_name: Option<String>,
+    /// Sort key inside the folder (or inside the "unsorted" bucket).
+    pub position: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -68,6 +74,15 @@ pub struct MoveLinkRequest {
     pub folder_id: Option<Uuid>,
 }
 
+/// Reorder all links within a single folder (or the unsorted bucket when
+/// `folder_id` is null). `ids` is the full ordered list; positions are 0..N.
+#[derive(Debug, Deserialize)]
+pub struct ReorderLinksRequest {
+    #[serde(default)]
+    pub folder_id: Option<Uuid>,
+    pub ids: Vec<Uuid>,
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct VoteRequest {
     /// 1 = like, -1 = dislike, 0 = remove vote.
@@ -85,12 +100,31 @@ pub struct CreateLinkRequest {
     /// Optional folder to drop the new link into.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// When true, accept the link even if a link with the same URL already
+    /// exists in the group. Default is `false`, which returns a conflict
+    /// error so the UI can warn the user.
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateLinkRequest {
     #[validate(length(max = 2000))]
     pub note: Option<String>,
+    /// Override fields: present-and-null clears the override, missing leaves
+    /// it alone, present-and-string sets it. We use `Option<Option<T>>` plus
+    /// a custom deserializer to distinguish the cases.
+    #[serde(default, deserialize_with = "opt_opt_string")]
+    pub title_override: Option<Option<String>>,
+    #[serde(default, deserialize_with = "opt_opt_string")]
+    pub image_override: Option<Option<String>>,
+}
+
+fn opt_opt_string<'de, D>(de: D) -> Result<Option<Option<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(Option::<String>::deserialize(de)?))
 }
 
 pub async fn list_links(
@@ -116,9 +150,27 @@ pub async fn create_link(
         ensure_folder_in_group(&state.db, folder_id, group_id).await?;
     }
 
+    let trimmed_url = payload.url.trim();
+    if !payload.force {
+        // Same URL in the same group → warn instead of silently creating a
+        // second card. The frontend surfaces this and lets the user retry
+        // with `force: true`.
+        let existing: Option<(Uuid,)> =
+            sqlx::query_as("SELECT id FROM trip_links WHERE group_id = $1 AND url = $2 LIMIT 1")
+                .bind(group_id)
+                .bind(trimmed_url)
+                .fetch_optional(&state.db)
+                .await?;
+        if existing.is_some() {
+            return Err(AppError::BadRequest(
+                "duplicate_url: this link is already on the board".into(),
+            ));
+        }
+    }
+
     // Best-effort metadata fetch. A failure here should NOT prevent the link
     // from being saved, so the user still gets a usable bare-URL entry.
-    let preview = match fetch_preview(&payload.url).await {
+    let preview = match fetch_preview(trimmed_url).await {
         Ok(p) => Some(p),
         Err(e) => {
             tracing::info!(url = %payload.url, error = %e, "unfurl failed");
@@ -126,15 +178,26 @@ pub async fn create_link(
         }
     };
 
+    // Append to the bottom of the target bucket so we never collide.
+    let next_position: (i32,) = sqlx::query_as(
+        "SELECT COALESCE(MAX(position), -1) + 1
+           FROM trip_links
+           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+    )
+    .bind(group_id)
+    .bind(payload.folder_id)
+    .fetch_one(&state.db)
+    .await?;
+
     let id: (Uuid,) = sqlx::query_as(
         "INSERT INTO trip_links
-            (group_id, added_by, url, title, description, image_url, site_name, note, fetched_at, folder_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (group_id, added_by, url, title, description, image_url, site_name, note, fetched_at, folder_id, position)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id",
     )
     .bind(group_id)
     .bind(user.id)
-    .bind(payload.url.trim())
+    .bind(trimmed_url)
     .bind(preview.as_ref().and_then(|p| p.title.clone()))
     .bind(preview.as_ref().and_then(|p| p.description.clone()))
     .bind(preview.as_ref().and_then(|p| p.image_url.clone()))
@@ -142,6 +205,7 @@ pub async fn create_link(
     .bind(payload.note.trim())
     .bind(preview.as_ref().map(|_| Utc::now()))
     .bind(payload.folder_id)
+    .bind(next_position.0)
     .fetch_one(&state.db)
     .await?;
 
@@ -173,6 +237,27 @@ pub async fn update_link(
     if let Some(note) = payload.note.as_deref() {
         sqlx::query("UPDATE trip_links SET note = $1 WHERE id = $2")
             .bind(note.trim())
+            .bind(link_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(title_override) = payload.title_override {
+        // Empty string is treated the same as null: "clear the override".
+        let value = title_override
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        sqlx::query("UPDATE trip_links SET title_override = $1 WHERE id = $2")
+            .bind(value)
+            .bind(link_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(image_override) = payload.image_override {
+        let value = image_override
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        sqlx::query("UPDATE trip_links SET image_override = $1 WHERE id = $2")
+            .bind(value)
             .bind(link_id)
             .execute(&state.db)
             .await?;
@@ -423,14 +508,71 @@ pub async fn move_link(
         ensure_folder_in_group(&state.db, folder_id, group_id).await?;
     }
 
-    sqlx::query("UPDATE trip_links SET folder_id = $1 WHERE id = $2")
+    // Drop at the bottom of the target bucket so moving never collides with
+    // an existing order.
+    let next_position: (i32,) = sqlx::query_as(
+        "SELECT COALESCE(MAX(position), -1) + 1
+           FROM trip_links
+           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+    )
+    .bind(group_id)
+    .bind(payload.folder_id)
+    .fetch_one(&state.db)
+    .await?;
+
+    sqlx::query("UPDATE trip_links SET folder_id = $1, position = $2 WHERE id = $3")
         .bind(payload.folder_id)
+        .bind(next_position.0)
         .bind(link_id)
         .execute(&state.db)
         .await?;
 
     let link = fetch_link(&state.db, link_id, user.id).await?;
     Ok(Json(link))
+}
+
+pub async fn reorder_links(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(group_id): Path<Uuid>,
+    Json(payload): Json<ReorderLinksRequest>,
+) -> AppResult<Json<Vec<TripLink>>> {
+    crate::groups::ensure_member(&state, group_id, user.id).await?;
+    if let Some(folder_id) = payload.folder_id {
+        ensure_folder_in_group(&state.db, folder_id, group_id).await?;
+    }
+
+    let mut tx = state.db.begin().await?;
+    // Temporarily bump everyone so we can freely rewrite positions.
+    sqlx::query(
+        "UPDATE trip_links SET position = position + 100000
+           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+    )
+    .bind(group_id)
+    .bind(payload.folder_id)
+    .execute(&mut *tx)
+    .await?;
+
+    for (idx, id) in payload.ids.iter().enumerate() {
+        let res = sqlx::query(
+            "UPDATE trip_links SET position = $1
+               WHERE id = $2 AND group_id = $3
+                 AND folder_id IS NOT DISTINCT FROM $4",
+        )
+        .bind(idx as i32)
+        .bind(id)
+        .bind(group_id)
+        .bind(payload.folder_id)
+        .execute(&mut *tx)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("link not found in this folder".into()));
+        }
+    }
+    tx.commit().await?;
+
+    let links = fetch_links(&state.db, group_id, user.id).await?;
+    Ok(Json(links))
 }
 
 async fn ensure_folder_in_group(pool: &PgPool, folder_id: Uuid, group_id: Uuid) -> AppResult<()> {
@@ -472,32 +614,41 @@ async fn load_folder(pool: &PgPool, folder_id: Uuid) -> AppResult<TripFolder> {
 
 // ---------- internal helpers ----------
 
-type LinkRow = (
-    Uuid,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    String,
-    Uuid,
-    String,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
-    i64,
-    i64,
-    Option<i16>,
-    Option<Uuid>,
-    Option<String>,
-);
+// We used to use a huge tuple here but sqlx's FromRow is capped (around 17
+// elements), and the query now fetches 19 columns. A named struct is also
+// easier to maintain as more columns get added.
+#[derive(sqlx::FromRow)]
+struct LinkRow {
+    id: Uuid,
+    url: String,
+    title: Option<String>,
+    description: Option<String>,
+    image_url: Option<String>,
+    site_name: Option<String>,
+    title_override: Option<String>,
+    image_override: Option<String>,
+    note: String,
+    added_by: Uuid,
+    added_by_display_name: String,
+    created_at: DateTime<Utc>,
+    fetched_at: Option<DateTime<Utc>>,
+    likes: i64,
+    dislikes: i64,
+    my_vote: Option<i16>,
+    folder_id: Option<Uuid>,
+    folder_name: Option<String>,
+    position: i32,
+}
 
 const LINK_SELECT: &str = "\
     SELECT tl.id, tl.url, tl.title, tl.description, tl.image_url, tl.site_name, \
-           tl.note, tl.added_by, u.display_name, tl.created_at, tl.fetched_at, \
+           tl.title_override, tl.image_override, \
+           tl.note, tl.added_by, u.display_name AS added_by_display_name, \
+           tl.created_at, tl.fetched_at, \
            COALESCE(SUM(CASE WHEN v.value = 1 THEN 1 ELSE 0 END), 0)::BIGINT AS likes, \
            COALESCE(SUM(CASE WHEN v.value = -1 THEN 1 ELSE 0 END), 0)::BIGINT AS dislikes, \
            MAX(CASE WHEN v.user_id = $2 THEN v.value END) AS my_vote, \
-           tl.folder_id, f.name AS folder_name \
+           tl.folder_id, f.name AS folder_name, tl.position \
     FROM trip_links tl \
     INNER JOIN users u ON u.id = tl.added_by \
     LEFT JOIN trip_link_votes v ON v.link_id = tl.id \
@@ -505,22 +656,25 @@ const LINK_SELECT: &str = "\
 
 fn row_into_link(row: LinkRow) -> TripLink {
     TripLink {
-        id: row.0,
-        url: row.1,
-        title: row.2,
-        description: row.3,
-        image_url: row.4,
-        site_name: row.5,
-        note: row.6,
-        added_by: row.7,
-        added_by_display_name: row.8,
-        created_at: row.9,
-        fetched_at: row.10,
-        likes: row.11,
-        dislikes: row.12,
-        my_vote: row.13.unwrap_or(0),
-        folder_id: row.14,
-        folder_name: row.15,
+        id: row.id,
+        url: row.url,
+        title: row.title,
+        description: row.description,
+        image_url: row.image_url,
+        site_name: row.site_name,
+        title_override: row.title_override,
+        image_override: row.image_override,
+        note: row.note,
+        added_by: row.added_by,
+        added_by_display_name: row.added_by_display_name,
+        created_at: row.created_at,
+        fetched_at: row.fetched_at,
+        likes: row.likes,
+        dislikes: row.dislikes,
+        my_vote: row.my_vote.unwrap_or(0),
+        folder_id: row.folder_id,
+        folder_name: row.folder_name,
+        position: row.position,
     }
 }
 
@@ -529,7 +683,7 @@ async fn fetch_links(pool: &PgPool, group_id: Uuid, me: Uuid) -> AppResult<Vec<T
         "{LINK_SELECT} \
          WHERE tl.group_id = $1 \
          GROUP BY tl.id, u.display_name, f.name \
-         ORDER BY tl.created_at DESC"
+         ORDER BY tl.position ASC, tl.created_at ASC"
     );
     let rows: Vec<LinkRow> = sqlx::query_as(&sql)
         .bind(group_id)
