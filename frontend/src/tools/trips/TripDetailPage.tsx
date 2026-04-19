@@ -3,6 +3,7 @@ import {
   Backpack,
   CalendarDays,
   Info,
+  LayoutGrid,
   Link2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,10 +15,11 @@ import type { GroupDetail, Trip } from "../../api/types";
 import InfoTab from "./InfoTab";
 import ItineraryTab from "./ItineraryTab";
 import LinksTab from "./LinksTab";
+import OverviewTab from "./OverviewTab";
 import PackingTab from "./PackingTab";
 import { tripsApi } from "./api";
 
-type TabId = "links" | "itinerary" | "packing" | "info";
+type TabId = "overview" | "links" | "itinerary" | "packing" | "info";
 
 const TAB_STORAGE_PREFIX = "friendflow.tripTool.tab.";
 
@@ -26,7 +28,13 @@ const TAB_STORAGE_PREFIX = "friendflow.tripTool.tab.";
 function readStoredTab(tripId: string | undefined): TabId | null {
   if (!tripId || typeof window === "undefined") return null;
   const raw = localStorage.getItem(TAB_STORAGE_PREFIX + tripId);
-  if (raw === "links" || raw === "itinerary" || raw === "packing" || raw === "info") {
+  if (
+    raw === "overview" ||
+    raw === "links" ||
+    raw === "itinerary" ||
+    raw === "packing" ||
+    raw === "info"
+  ) {
     return raw;
   }
   return null;
@@ -89,7 +97,7 @@ export default function TripDetailPage() {
       setTab(stored);
       return;
     }
-    setTab(needsInfoSetup(trip) ? "info" : "links");
+    setTab(needsInfoSetup(trip) ? "info" : "overview");
   }, [tripId, trip]);
 
   const load = useCallback(() => {
@@ -126,6 +134,7 @@ export default function TripDetailPage() {
 
   const incomplete = needsInfoSetup(trip);
   const tabs: { id: TabId; icon: typeof Link2; label: string }[] = [
+    { id: "overview", icon: LayoutGrid, label: t("trips.tabs.overview") },
     { id: "links", icon: Link2, label: t("trips.tabs.links") },
     { id: "itinerary", icon: CalendarDays, label: t("trips.tabs.itinerary") },
     { id: "packing", icon: Backpack, label: t("trips.tabs.packing") },
@@ -199,6 +208,13 @@ export default function TripDetailPage() {
         id={`trip-tab-${tab}`}
         aria-labelledby={`trip-tab-btn-${tab}`}
       >
+        {tab === "overview" && (
+          <OverviewTab
+            group={group}
+            trip={trip}
+            onSelectTab={(next) => selectTab(next)}
+          />
+        )}
         {tab === "links" && <LinksTab group={group} trip={trip} />}
         {tab === "itinerary" && <ItineraryTab group={group} trip={trip} />}
         {tab === "packing" && <PackingTab group={group} trip={trip} />}

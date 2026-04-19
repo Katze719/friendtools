@@ -608,9 +608,38 @@ const de: Translations = {
         "Leer lassen, um den automatisch geladenen Wert wieder zu verwenden.",
       refreshDone: "Vorschau aktualisiert.",
       refreshEmpty: "Kein neuer Inhalt gefunden.",
+      widgets: {
+        openTab: "Öffnen",
+        noDates: "Noch keine Daten",
+        noDestinations: "Noch keine Ziele",
+        links: {
+          empty: "Noch keine Links gesammelt.",
+          count_one: "{{count}} Link insgesamt",
+          count_other: "{{count}} Links insgesamt",
+        },
+        itinerary: {
+          empty: "Noch nichts geplant.",
+          count_one: "{{count}} Eintrag insgesamt",
+          count_other: "{{count}} Einträge insgesamt",
+        },
+        packing: {
+          empty: "Packliste ist noch leer.",
+          progress: "{{done}} von {{total}} gepackt",
+          allPacked: "Alles gepackt",
+          count_one: "{{count}} noch zu packen",
+          count_other: "{{count}} noch zu packen",
+        },
+        budget: {
+          title: "Budget",
+          empty: "Noch kein Budget gesetzt - im Info-Tab anlegen.",
+          remaining: "Noch {{amount}} übrig",
+          over: "{{amount}} über Budget",
+        },
+      },
     },
     tabs: {
       ariaLabel: "Reiseboard-Bereiche",
+      overview: "Überblick",
       links: "Links",
       itinerary: "Reiseplan",
       packing: "Packliste",

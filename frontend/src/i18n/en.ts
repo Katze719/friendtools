@@ -605,9 +605,38 @@ const en = {
         "Leave blank to fall back to the auto-fetched value.",
       refreshDone: "Preview updated.",
       refreshEmpty: "No new content found.",
+      widgets: {
+        openTab: "Open",
+        noDates: "No dates yet",
+        noDestinations: "No destinations yet",
+        links: {
+          empty: "No links added yet.",
+          count_one: "{{count}} link in total",
+          count_other: "{{count}} links in total",
+        },
+        itinerary: {
+          empty: "Nothing planned yet.",
+          count_one: "{{count}} entry in total",
+          count_other: "{{count}} entries in total",
+        },
+        packing: {
+          empty: "Packing list is still empty.",
+          progress: "{{done}} of {{total}} packed",
+          allPacked: "All packed",
+          count_one: "{{count}} still to pack",
+          count_other: "{{count}} still to pack",
+        },
+        budget: {
+          title: "Budget",
+          empty: "No budget set yet - add one in Info.",
+          remaining: "{{amount}} left",
+          over: "{{amount}} over budget",
+        },
+      },
     },
     tabs: {
       ariaLabel: "Trip planner sections",
+      overview: "Overview",
       links: "Links",
       itinerary: "Itinerary",
       packing: "Packing list",
