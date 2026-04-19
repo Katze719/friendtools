@@ -2,8 +2,10 @@ import {
   ArrowLeft,
   CalendarClock,
   CalendarDays,
+  ExternalLink,
   MapPin,
   Pencil,
+  Plane,
   Plus,
   Trash2,
   X,
@@ -19,7 +21,12 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
-import type { CalendarEvent, GroupDetail } from "../../api/types";
+import type {
+  CalendarEvent,
+  GroupDetail,
+  Trip,
+  TripItineraryItem,
+} from "../../api/types";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import DayPicker from "../../components/DayPicker";
 import MonthCalendar, {
@@ -34,6 +41,7 @@ import {
   toDateKey,
 } from "../../lib/date";
 import { formatDateTime, formatTime } from "../../lib/format";
+import { tripsApi } from "../trips/api";
 import { calendarApi } from "./api";
 
 type View = "agenda" | "month";
@@ -43,6 +51,8 @@ export default function CalendarOverviewPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [events, setEvents] = useState<CalendarEvent[] | null>(null);
+  const [tripItems, setTripItems] = useState<TripItineraryItem[]>([]);
+  const [tripsById, setTripsById] = useState<Map<string, Trip>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("month");
   const [visibleMonth, setVisibleMonth] = useState<Date>(() =>
@@ -57,10 +67,28 @@ export default function CalendarOverviewPage() {
 
   const reload = useCallback(() => {
     if (!groupId) return;
-    Promise.all([groupsApi.get(groupId), calendarApi.list(groupId)])
-      .then(([g, e]) => {
+    // Fetch group and calendar events first; itinerary overlay comes from
+    // iterating every trip in the group. Trips API failures are tolerated
+    // so the calendar still renders without them.
+    Promise.all([
+      groupsApi.get(groupId),
+      calendarApi.list(groupId),
+      tripsApi.listTrips(groupId).catch(() => [] as Trip[]),
+    ])
+      .then(async ([g, e, trips]) => {
         setGroup(g);
         setEvents(e);
+        setTripsById(new Map(trips.map((tp) => [tp.id, tp])));
+        // Fan out one request per trip in parallel. An individual failure
+        // only drops that trip's itinerary; it doesn't break the view.
+        const perTrip = await Promise.all(
+          trips.map((tp) =>
+            tripsApi
+              .listItinerary(groupId, tp.id)
+              .catch(() => [] as TripItineraryItem[]),
+          ),
+        );
+        setTripItems(perTrip.flat());
       })
       .catch((e) =>
         setError(e instanceof ApiError ? e.message : t("common.error")),
@@ -109,6 +137,22 @@ export default function CalendarOverviewPage() {
     return map;
   }, [events]);
 
+  const tripItemsByDay = useMemo(() => {
+    const map: Record<string, TripItineraryItem[]> = {};
+    for (const it of tripItems) {
+      (map[it.day_date] ??= []).push(it);
+    }
+    for (const bucket of Object.values(map)) {
+      bucket.sort((a, b) => {
+        const at = a.start_time ?? "99:99:99";
+        const bt = b.start_time ?? "99:99:99";
+        if (at !== bt) return at.localeCompare(bt);
+        return a.position - b.position;
+      });
+    }
+    return map;
+  }, [tripItems]);
+
   const badgesByDay = useMemo(() => {
     const out: Record<string, DayBadge[]> = {};
     for (const [day, evs] of Object.entries(eventsByDay)) {
@@ -118,13 +162,28 @@ export default function CalendarOverviewPage() {
         accent: "bg-brand-500",
       }));
     }
+    for (const [day, its] of Object.entries(tripItemsByDay)) {
+      const existing = out[day] ?? [];
+      out[day] = existing.concat(
+        its.map((it) => ({
+          id: "trip-" + it.id,
+          label: it.title,
+          accent: "bg-sky-500",
+        })),
+      );
+    }
     return out;
-  }, [eventsByDay]);
+  }, [eventsByDay, tripItemsByDay]);
 
   const dayEvents = useMemo(() => {
     if (!selectedDay) return [];
     return eventsByDay[toDateKey(selectedDay)] ?? [];
   }, [selectedDay, eventsByDay]);
+
+  const dayTripItems = useMemo(() => {
+    if (!selectedDay) return [];
+    return tripItemsByDay[toDateKey(selectedDay)] ?? [];
+  }, [selectedDay, tripItemsByDay]);
 
   function openCreateForDay(day: Date) {
     setEditing(null);
@@ -269,7 +328,7 @@ export default function CalendarOverviewPage() {
                     {t("calendar.overview.add")}
                   </button>
                 </div>
-                {dayEvents.length === 0 ? (
+                {dayEvents.length === 0 && dayTripItems.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {t("calendar.overview.dayEmpty")}
                   </p>
@@ -284,6 +343,14 @@ export default function CalendarOverviewPage() {
                         onEdit={() => openEdit(ev)}
                         dim={false}
                         anchorDay={selectedDay}
+                      />
+                    ))}
+                    {dayTripItems.map((it) => (
+                      <TripEntryCard
+                        key={"trip-" + it.id}
+                        item={it}
+                        groupId={group.id}
+                        tripName={tripsById.get(it.trip_id)?.name ?? null}
                       />
                     ))}
                   </ul>
@@ -518,6 +585,77 @@ function EventCard({
       </div>
     </li>
   );
+}
+
+/**
+ * Read-only card for a trip itinerary item shown inside a calendar day list.
+ * Editing happens in the trip planner; keeping it read-only here avoids
+ * two-way sync pitfalls.
+ */
+function TripEntryCard({
+  item,
+  groupId,
+  tripName,
+}: {
+  item: TripItineraryItem;
+  groupId: string;
+  tripName: string | null;
+}) {
+  const { t } = useTranslation();
+  const timeLabel = formatTripTimeRange(item.start_time, item.end_time);
+  return (
+    <li className="card border-dashed border-sky-300/70 bg-sky-50/40 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-sky-700 dark:text-sky-300">
+            <Plane className="h-3.5 w-3.5" />
+            <span>
+              {timeLabel || t("calendar.overview.allDay")}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
+              {tripName
+                ? t("calendar.overview.fromTripNamed", { name: tripName })
+                : t("calendar.overview.fromTrip")}
+            </span>
+          </div>
+          <h3 className="mt-1 break-words text-base font-semibold">
+            {item.title}
+          </h3>
+          {item.location && (
+            <p className="mt-1 flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="break-words">{item.location}</span>
+            </p>
+          )}
+          {item.note && (
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-600 dark:text-slate-300">
+              {item.note}
+            </p>
+          )}
+        </div>
+        <Link
+          to={`/groups/${groupId}/trips/${item.trip_id}`}
+          className="btn-ghost -my-1 shrink-0 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
+          aria-label={t("calendar.overview.openInTrip")}
+          title={t("calendar.overview.openInTrip")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </li>
+  );
+}
+
+function formatTripTimeRange(
+  start: string | null,
+  end: string | null,
+): string {
+  const s = start?.slice(0, 5);
+  const e = end?.slice(0, 5);
+  if (s && e) return `${s} - ${e}`;
+  if (s) return s;
+  if (e) return `- ${e}`;
+  return "";
 }
 
 function EventForm({

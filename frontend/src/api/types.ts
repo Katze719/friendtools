@@ -102,8 +102,35 @@ export interface Payment {
   created_at: string;
 }
 
+export interface TripDestination {
+  name: string;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+/**
+ * A concrete trip inside a group. Each group can have multiple trips;
+ * links, folders, packing items, and itinerary items all scope to a
+ * specific trip id.
+ */
+export interface Trip {
+  id: string;
+  group_id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: TripDestination[];
+  budget_cents: number | null;
+  position: number;
+  created_by: string;
+  created_by_display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TripLink {
   id: string;
+  trip_id: string;
   url: string;
   title: string | null;
   description: string | null;
@@ -130,6 +157,7 @@ export interface TripLink {
 
 export interface TripFolder {
   id: string;
+  trip_id: string;
   name: string;
   created_by: string;
   created_by_display_name: string;
@@ -137,24 +165,9 @@ export interface TripFolder {
   link_count: number;
 }
 
-export interface TripDestination {
-  name: string;
-  lat?: number | null;
-  lng?: number | null;
-}
-
-export interface TripInfo {
-  group_id: string;
-  start_date: string | null;
-  end_date: string | null;
-  destinations: TripDestination[];
-  budget_cents: number | null;
-  updated_at: string;
-}
-
 export interface TripPackingItem {
   id: string;
-  group_id: string;
+  trip_id: string;
   name: string;
   quantity: string;
   category: string;
@@ -170,7 +183,7 @@ export interface TripPackingItem {
 
 export interface TripItineraryItem {
   id: string;
-  group_id: string;
+  trip_id: string;
   /** ISO date (YYYY-MM-DD) */
   day_date: string;
   title: string;

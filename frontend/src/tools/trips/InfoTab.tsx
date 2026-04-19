@@ -2,72 +2,81 @@ import {
   Calendar,
   DollarSign,
   MapPin,
+  Pencil,
   Plus,
   Save,
   Trash2,
+  Type,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import type {
   GroupDetail,
   Settlement,
   SplitwiseSummary,
+  Trip,
   TripDestination,
-  TripInfo,
 } from "../../api/types";
+import HelpBanner from "../../components/HelpBanner";
 import { splitwiseApi } from "../splitwise/api";
-import { useToast } from "../../ui/UIProvider";
+import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tripsApi } from "./api";
 
 /**
- * The "Info" tab collects the lightweight metadata that turns a link board
- * into a real trip: dates, destinations and a budget. Every field is
- * optional; empty state means "not tracked".
+ * "Info" tab for a single trip: edit the lightweight metadata that turns a
+ * link board into a real trip — name, dates, destinations, budget — plus a
+ * delete action. Every field except the name is optional.
  */
-export default function InfoTab({ group }: { group: GroupDetail }) {
+export default function InfoTab({
+  group,
+  trip,
+  onTripChanged,
+}: {
+  group: GroupDetail;
+  trip: Trip;
+  onTripChanged: (updated: Trip) => void;
+}) {
   const { t } = useTranslation();
   const toast = useToast();
-  const [info, setInfo] = useState<TripInfo | null>(null);
+  const confirm = useConfirm();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<SplitwiseSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [budget, setBudget] = useState("");
-  const [destinations, setDestinations] = useState<TripDestination[]>([]);
+  const [name, setName] = useState(trip.name);
+  const [renaming, setRenaming] = useState(false);
+  const [startDate, setStartDate] = useState(trip.start_date ?? "");
+  const [endDate, setEndDate] = useState(trip.end_date ?? "");
+  const [budget, setBudget] = useState(
+    trip.budget_cents == null ? "" : (trip.budget_cents / 100).toFixed(2),
+  );
+  const [destinations, setDestinations] = useState<TripDestination[]>(
+    trip.destinations ?? [],
+  );
+
+  useEffect(() => {
+    setName(trip.name);
+    setStartDate(trip.start_date ?? "");
+    setEndDate(trip.end_date ?? "");
+    setBudget(
+      trip.budget_cents == null ? "" : (trip.budget_cents / 100).toFixed(2),
+    );
+    setDestinations(trip.destinations ?? []);
+  }, [trip]);
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    Promise.all([
-      tripsApi.getInfo(group.id),
-      // Summary is only needed for the budget widget; tolerate failures so
-      // the Info tab still works if Splitwise hasn't been opened yet.
-      splitwiseApi.summary(group.id).catch(() => null),
-    ])
-      .then(([i, s]) => {
-        if (!alive) return;
-        setInfo(i);
-        setSummary(s);
-        setStartDate(i.start_date ?? "");
-        setEndDate(i.end_date ?? "");
-        setBudget(
-          i.budget_cents == null ? "" : (i.budget_cents / 100).toFixed(2),
-        );
-        setDestinations(i.destinations ?? []);
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (!alive) return;
-        toast.error(e instanceof ApiError ? e.message : t("common.error"));
-        setLoading(false);
-      });
+    splitwiseApi
+      .summary(group.id)
+      .then((s) => alive && setSummary(s))
+      .catch(() => alive && setSummary(null));
     return () => {
       alive = false;
     };
-  }, [group.id, t, toast]);
+  }, [group.id]);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
@@ -94,18 +103,57 @@ export default function InfoTab({ group }: { group: GroupDetail }) {
 
     setSaving(true);
     try {
-      const updated = await tripsApi.updateInfo(group.id, {
+      const updated = await tripsApi.updateTrip(group.id, trip.id, {
         start_date: startDate || null,
         end_date: endDate || null,
         budget_cents: budgetCents,
         destinations: clean,
       });
-      setInfo(updated);
+      onTripChanged(updated);
       toast.success(t("trips.info.saved"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("common.error"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitRename(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === trip.name) {
+      setName(trip.name);
+      setRenaming(false);
+      return;
+    }
+    try {
+      const updated = await tripsApi.updateTrip(group.id, trip.id, {
+        name: trimmed,
+      });
+      onTripChanged(updated);
+      setRenaming(false);
+      toast.success(t("trips.info.renamed"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("common.error"));
+    }
+  }
+
+  async function onDeleteTrip() {
+    const ok = await confirm({
+      title: t("trips.info.deleteTitle"),
+      message: t("trips.info.deleteConfirm", { name: trip.name }),
+      confirmLabel: t("common.delete"),
+      variant: "danger",
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await tripsApi.deleteTrip(group.id, trip.id);
+      toast.success(t("trips.list.deleted"));
+      navigate(`/groups/${group.id}/trips`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("common.error"));
+      setDeleting(false);
     }
   }
 
@@ -123,12 +171,62 @@ export default function InfoTab({ group }: { group: GroupDetail }) {
     setDestinations((d) => d.filter((_, i) => i !== idx));
   }
 
-  if (loading) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
-  }
-
   return (
     <form onSubmit={onSave} className="space-y-6">
+      <HelpBanner
+        storageKey="friendflow.banner.trip.info"
+        title={t("trips.info.bannerTitle")}
+      >
+        {t("trips.info.bannerBody")}
+      </HelpBanner>
+
+      <section className="card space-y-3 p-5">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Type className="h-5 w-5 text-brand-500" />
+          {t("trips.info.nameTitle")}
+        </h2>
+        {renaming ? (
+          <form
+            onSubmit={submitRename}
+            className="flex flex-wrap items-center gap-2"
+          >
+            <input
+              autoFocus
+              className="input h-9 min-w-0 flex-1 py-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={120}
+              required
+            />
+            <button type="submit" className="btn-primary h-9 py-1 text-sm">
+              {t("common.save")}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost h-9 py-1 text-sm"
+              onClick={() => {
+                setName(trip.name);
+                setRenaming(false);
+              }}
+            >
+              {t("common.cancel")}
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-medium">{trip.name}</span>
+            <button
+              type="button"
+              className="btn-ghost text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              onClick={() => setRenaming(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t("trips.info.rename")}
+            </button>
+          </div>
+        )}
+      </section>
+
       <section className="card space-y-4 p-5">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Calendar className="h-5 w-5 text-brand-500" />
@@ -294,14 +392,27 @@ export default function InfoTab({ group }: { group: GroupDetail }) {
           />
         </div>
         <BudgetWidget
-          info={info}
+          trip={trip}
           summary={summary}
           currency={group.currency}
         />
       </section>
 
-      <div className="flex justify-end">
-        <button type="submit" className="btn-primary" disabled={saving}>
+      <div className="flex flex-col-reverse justify-between gap-3 sm:flex-row">
+        <button
+          type="button"
+          className="btn-ghost self-start text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+          onClick={onDeleteTrip}
+          disabled={deleting}
+        >
+          <Trash2 className="h-4 w-4" />
+          {deleting ? t("common.saving") : t("trips.info.deleteTrip")}
+        </button>
+        <button
+          type="submit"
+          className="btn-primary self-end"
+          disabled={saving}
+        >
           <Save className="h-4 w-4" />
           {saving ? t("common.saving") : t("common.save")}
         </button>
@@ -351,16 +462,16 @@ function MapLinks({ destination }: { destination: TripDestination }) {
 }
 
 function BudgetWidget({
-  info,
+  trip,
   summary,
   currency,
 }: {
-  info: TripInfo | null;
+  trip: Trip;
   summary: SplitwiseSummary | null;
   currency: string;
 }) {
   const { t, i18n } = useTranslation();
-  if (!info || info.budget_cents == null) {
+  if (trip.budget_cents == null) {
     return (
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {t("trips.info.budgetEmptyHint")}
@@ -370,10 +481,10 @@ function BudgetWidget({
 
   const spentCents = summary ? totalSpendFromSummary(summary) : 0;
   const pct =
-    info.budget_cents === 0
+    trip.budget_cents === 0
       ? 0
-      : Math.min(100, Math.round((spentCents / info.budget_cents) * 100));
-  const over = spentCents > info.budget_cents;
+      : Math.min(100, Math.round((spentCents / trip.budget_cents) * 100));
+  const over = spentCents > trip.budget_cents;
 
   const fmt = (c: number) =>
     new Intl.NumberFormat(i18n.language, {
@@ -393,7 +504,7 @@ function BudgetWidget({
             over ? "text-rose-600 dark:text-rose-400" : ""
           }`}
         >
-          {fmt(spentCents)} / {fmt(info.budget_cents)}
+          {fmt(spentCents)} / {fmt(trip.budget_cents)}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -411,27 +522,28 @@ function BudgetWidget({
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {over
           ? t("trips.info.budgetOverBy", {
-              amount: fmt(spentCents - info.budget_cents),
+              amount: fmt(spentCents - trip.budget_cents),
             })
           : t("trips.info.budgetRemaining", {
-              amount: fmt(info.budget_cents - spentCents),
+              amount: fmt(trip.budget_cents - spentCents),
             })}
+      </p>
+      <p className="text-[11px] italic text-slate-400 dark:text-slate-500">
+        {t("trips.info.budgetGroupWide")}
       </p>
     </div>
   );
 }
 
 /**
- * Approximate "total spend on the trip" from the Splitwise summary: sum the
- * absolute value of every negative balance (i.e. total owed to payers). This
- * equals the sum of all expenses in the group regardless of split rules.
+ * Approximate total group spend from the Splitwise summary: sum all
+ * pairwise debts. We deliberately avoid pulling the full expense list so
+ * the Info tab stays cheap.
  *
- * We deliberately avoid pulling the expense list separately — the summary is
- * already loaded and this keeps the Info tab cheap.
+ * NB: this is the whole group's spend, not per-trip. Trips don't carry
+ * expenses yet; the note under the widget calls this out to the user.
  */
 function totalSpendFromSummary(summary: SplitwiseSummary): number {
-  // Use the direct_settlements list if available as it reflects what was
-  // actually owed. Fall back to summing negative balances.
   const direct: Settlement[] = summary.direct_settlements ?? [];
   if (direct.length > 0) {
     return direct.reduce((acc, s) => acc + s.amount_cents, 0);

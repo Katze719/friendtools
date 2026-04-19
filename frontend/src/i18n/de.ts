@@ -264,6 +264,38 @@ const de: Translations = {
     },
   },
   trips: {
+    list: {
+      title: "Reiseboard",
+      subtitle: "Alle geplanten Reisen dieser Gruppe.",
+      bannerTitle: "Mehrere Reisen pro Gruppe",
+      bannerBody:
+        "Lege für jeden Urlaub eine eigene Reise an. Jede Reise hat ihre eigenen Links, Reiseplan, Packliste und Budget.",
+      newTrip: "Neue Reise",
+      emptyTitle: "Noch keine Reisen",
+      emptyHint:
+        "Leg deine erste Reise an - z.B. 'Lissabon im Mai'. Du kannst später noch Ziele und Daten ergänzen.",
+      createFirst: "Erste Reise anlegen",
+      create: "Reise anlegen",
+      nameLabel: "Name der Reise",
+      namePlaceholder: "z.B. Lissabon im Mai",
+      datesHint: "Daten sind optional - du kannst sie später im Info-Tab ändern.",
+      deleted: "Reise gelöscht.",
+      deleteTitle: "Reise löschen?",
+      deleteConfirm:
+        "Soll '{{name}}' mit allen Links, Einträgen und Packlistenpunkten gelöscht werden?",
+      delete: "Reise löschen",
+      noDates: "Keine Daten gesetzt",
+      noDestinations: "Keine Ziele",
+      status: {
+        upcoming: "Anstehend",
+        ongoing: "Läuft",
+        past: "Vergangen",
+        unscheduled: "Ohne Datum",
+      },
+    },
+    detail: {
+      backToList: "Zu allen Reisen",
+    },
     overview: {
       backToGroup: "Zur Gruppe",
       title: "Reiseboard",
@@ -332,6 +364,18 @@ const de: Translations = {
       info: "Info",
     },
     info: {
+      bannerTitle: "Die Basis dieser Reise",
+      bannerBody:
+        "Hier legst du Name, Reisedaten, Ziele und Budget dieser Reise fest. Die Daten steuern: die Tage im Reiseplan sowie die Budget-Anzeige (verbunden mit dem Splitwise-Tool der Gruppe).",
+      nameTitle: "Reise",
+      rename: "Umbenennen",
+      renamed: "Reise umbenannt.",
+      deleteTrip: "Reise löschen",
+      deleteTitle: "Reise löschen?",
+      deleteConfirm:
+        "Soll '{{name}}' mit allen Links, Einträgen und Packlistenpunkten gelöscht werden?",
+      budgetGroupWide:
+        "Hinweis: Die Ausgaben beziehen sich derzeit auf die gesamte Gruppe, nicht nur diese Reise.",
       datesTitle: "Reisedaten",
       startDate: "Anreise",
       endDate: "Abreise",
@@ -361,6 +405,9 @@ const de: Translations = {
       errorBudget: "Budget muss eine positive Zahl sein.",
     },
     packing: {
+      bannerTitle: "Gemeinsame Checkliste",
+      bannerBody:
+        "Alle in der Gruppe sehen die gleiche Liste und können Einträge abhaken. Kategorien und Zuweisungen sind optional - teile so z.B. 'Zelt' einer Person zu und 'Essen' einer anderen.",
       title: "Packliste",
       add: "Hinzufügen",
       empty: "Noch nichts auf der Liste.",
@@ -380,9 +427,12 @@ const de: Translations = {
       deleteConfirm: "'{{name}}' von der Liste entfernen?",
     },
     itinerary: {
+      bannerTitle: "Tagesprogramm für die Reise",
+      bannerBody:
+        "Lege Aktivitäten, Transfers oder Reservierungen pro Tag an - mit oder ohne Uhrzeit. Termine aus dem Kalender der Gruppe werden hier automatisch mit angezeigt, wenn sie in den Reisezeitraum fallen.",
       emptyTitle: "Noch kein Reiseplan",
       emptyHint:
-        "Lege Aktivitäten, Transfers oder Reservierungen an - mit oder ohne Uhrzeit.",
+        "Lege Aktivitäten, Transfers oder Reservierungen an - mit oder ohne Uhrzeit. Tipp: Termine aus dem Kalender tauchen hier automatisch auf.",
       addFirst: "Ersten Eintrag anlegen",
       addForDay: "Eintrag für diesen Tag",
       dayEmpty: "Für diesen Tag ist noch nichts eingetragen.",
@@ -396,6 +446,10 @@ const de: Translations = {
       noLink: "Keinen Link verknüpfen",
       deleteTitle: "Eintrag löschen?",
       deleteConfirm: "'{{title}}' aus dem Reiseplan entfernen?",
+      fromCalendar: "Aus Kalender",
+      openInCalendar: "Im Kalender öffnen",
+      sourceTrip: "Reiseplan",
+      sourceCalendar: "Kalender",
     },
   },
   calendar: {
@@ -441,6 +495,9 @@ const de: Translations = {
       dayTitle: "Termine am {{date}}",
       dayEmpty: "An diesem Tag ist nichts geplant.",
       hintPickDay: "Tippe einen Tag an, um Termine zu sehen oder anzulegen.",
+      fromTrip: "Aus Reiseplan",
+      fromTripNamed: "Reise: {{name}}",
+      openInTrip: "Im Reiseplan öffnen",
     },
     grid: {
       prevMonth: "Vorheriger Monat",

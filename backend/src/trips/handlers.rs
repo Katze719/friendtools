@@ -12,6 +12,7 @@ use crate::{
     auth::middleware::AuthUser,
     error::{AppError, AppResult},
     state::AppState,
+    trips::trip::ensure_in_group,
 };
 
 use super::unfurl::fetch_preview;
@@ -19,6 +20,7 @@ use super::unfurl::fetch_preview;
 #[derive(Debug, Serialize)]
 pub struct TripLink {
     pub id: Uuid,
+    pub trip_id: Uuid,
     pub url: String,
     pub title: Option<String>,
     pub description: Option<String>,
@@ -47,6 +49,7 @@ pub struct TripLink {
 #[derive(Debug, Serialize)]
 pub struct TripFolder {
     pub id: Uuid,
+    pub trip_id: Uuid,
     pub name: String,
     pub created_by: Uuid,
     pub created_by_display_name: String,
@@ -101,7 +104,7 @@ pub struct CreateLinkRequest {
     #[serde(default)]
     pub folder_id: Option<Uuid>,
     /// When true, accept the link even if a link with the same URL already
-    /// exists in the group. Default is `false`, which returns a conflict
+    /// exists on this trip. Default is `false`, which returns a conflict
     /// error so the UI can warn the user.
     #[serde(default)]
     pub force: bool,
@@ -130,34 +133,35 @@ where
 pub async fn list_links(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<Vec<TripLink>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    let links = fetch_links(&state.db, group_id, user.id).await?;
-    Ok(Json(links))
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    Ok(Json(fetch_links(&state.db, trip_id, user.id).await?))
 }
 
 pub async fn create_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<CreateLinkRequest>,
 ) -> AppResult<Json<TripLink>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
     if let Some(folder_id) = payload.folder_id {
-        ensure_folder_in_group(&state.db, folder_id, group_id).await?;
+        ensure_folder_in_trip(&state.db, folder_id, trip_id).await?;
     }
 
     let trimmed_url = payload.url.trim();
     if !payload.force {
-        // Same URL in the same group → warn instead of silently creating a
+        // Same URL on the same trip → warn instead of silently creating a
         // second card. The frontend surfaces this and lets the user retry
         // with `force: true`.
         let existing: Option<(Uuid,)> =
-            sqlx::query_as("SELECT id FROM trip_links WHERE group_id = $1 AND url = $2 LIMIT 1")
-                .bind(group_id)
+            sqlx::query_as("SELECT id FROM trip_links WHERE trip_id = $1 AND url = $2 LIMIT 1")
+                .bind(trip_id)
                 .bind(trimmed_url)
                 .fetch_optional(&state.db)
                 .await?;
@@ -178,24 +182,23 @@ pub async fn create_link(
         }
     };
 
-    // Append to the bottom of the target bucket so we never collide.
     let next_position: (i32,) = sqlx::query_as(
         "SELECT COALESCE(MAX(position), -1) + 1
            FROM trip_links
-           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+           WHERE trip_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.folder_id)
     .fetch_one(&state.db)
     .await?;
 
     let id: (Uuid,) = sqlx::query_as(
         "INSERT INTO trip_links
-            (group_id, added_by, url, title, description, image_url, site_name, note, fetched_at, folder_id, position)
+            (trip_id, added_by, url, title, description, image_url, site_name, note, fetched_at, folder_id, position)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(user.id)
     .bind(trimmed_url)
     .bind(preview.as_ref().and_then(|p| p.title.clone()))
@@ -209,30 +212,19 @@ pub async fn create_link(
     .fetch_one(&state.db)
     .await?;
 
-    let link = fetch_link(&state.db, id.0, user.id).await?;
-    Ok(Json(link))
+    Ok(Json(fetch_link(&state.db, id.0, user.id).await?))
 }
 
 pub async fn update_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, link_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, link_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateLinkRequest>,
 ) -> AppResult<Json<TripLink>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    // Any group member may edit a link; we still need to make sure the link
-    // exists within this group.
-    let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_links WHERE id = $1 AND group_id = $2")
-            .bind(link_id)
-            .bind(group_id)
-            .fetch_optional(&state.db)
-            .await?;
-    if exists.is_none() {
-        return Err(AppError::NotFound("link not found".into()));
-    }
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_link_in_trip(&state.db, link_id, trip_id).await?;
 
     if let Some(note) = payload.note.as_deref() {
         sqlx::query("UPDATE trip_links SET note = $1 WHERE id = $2")
@@ -242,7 +234,6 @@ pub async fn update_link(
             .await?;
     }
     if let Some(title_override) = payload.title_override {
-        // Empty string is treated the same as null: "clear the override".
         let value = title_override
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -263,22 +254,20 @@ pub async fn update_link(
             .await?;
     }
 
-    let link = fetch_link(&state.db, link_id, user.id).await?;
-    Ok(Json(link))
+    Ok(Json(fetch_link(&state.db, link_id, user.id).await?))
 }
 
 pub async fn delete_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, link_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, link_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
-    // Any group member can delete links inside their group. The group-id
-    // filter guarantees we don't touch other groups' data.
-    let result = sqlx::query("DELETE FROM trip_links WHERE id = $1 AND group_id = $2")
+    let result = sqlx::query("DELETE FROM trip_links WHERE id = $1 AND trip_id = $2")
         .bind(link_id)
-        .bind(group_id)
+        .bind(trip_id)
         .execute(&state.db)
         .await?;
 
@@ -292,14 +281,15 @@ pub async fn delete_link(
 pub async fn refresh_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, link_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, link_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<TripLink>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
     let row: Option<(String,)> =
-        sqlx::query_as("SELECT url FROM trip_links WHERE id = $1 AND group_id = $2")
+        sqlx::query_as("SELECT url FROM trip_links WHERE id = $1 AND trip_id = $2")
             .bind(link_id)
-            .bind(group_id)
+            .bind(trip_id)
             .fetch_optional(&state.db)
             .await?;
     let Some((url,)) = row else {
@@ -326,28 +316,19 @@ pub async fn refresh_link(
         }
     }
 
-    let link = fetch_link(&state.db, link_id, user.id).await?;
-    Ok(Json(link))
+    Ok(Json(fetch_link(&state.db, link_id, user.id).await?))
 }
 
 pub async fn vote_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, link_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, link_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<VoteRequest>,
 ) -> AppResult<Json<TripLink>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    let exists: Option<(i64,)> =
-        sqlx::query_as("SELECT 1::BIGINT FROM trip_links WHERE id = $1 AND group_id = $2")
-            .bind(link_id)
-            .bind(group_id)
-            .fetch_optional(&state.db)
-            .await?;
-    if exists.is_none() {
-        return Err(AppError::NotFound("link not found".into()));
-    }
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_link_in_trip(&state.db, link_id, trip_id).await?;
 
     if payload.value == 0 {
         sqlx::query("DELETE FROM trip_link_votes WHERE link_id = $1 AND user_id = $2")
@@ -369,8 +350,7 @@ pub async fn vote_link(
         .await?;
     }
 
-    let link = fetch_link(&state.db, link_id, user.id).await?;
-    Ok(Json(link))
+    Ok(Json(fetch_link(&state.db, link_id, user.id).await?))
 }
 
 // ---------- folder handlers ----------
@@ -378,34 +358,38 @@ pub async fn vote_link(
 pub async fn list_folders(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<Vec<TripFolder>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
-    let rows: Vec<(Uuid, String, Uuid, String, DateTime<Utc>, i64)> = sqlx::query_as(
-        "SELECT f.id, f.name, f.created_by, u.display_name, f.created_at,
+    let rows: Vec<(Uuid, Uuid, String, Uuid, String, DateTime<Utc>, i64)> = sqlx::query_as(
+        "SELECT f.id, f.trip_id, f.name, f.created_by, u.display_name, f.created_at,
                 COALESCE(COUNT(tl.id), 0)::BIGINT AS link_count
          FROM trip_folders f
          INNER JOIN users u ON u.id = f.created_by
          LEFT JOIN trip_links tl ON tl.folder_id = f.id
-         WHERE f.group_id = $1
+         WHERE f.trip_id = $1
          GROUP BY f.id, u.display_name
          ORDER BY f.created_at ASC",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .fetch_all(&state.db)
     .await?;
 
     let out = rows
         .into_iter()
         .map(
-            |(id, name, created_by, created_by_display_name, created_at, link_count)| TripFolder {
-                id,
-                name,
-                created_by,
-                created_by_display_name,
-                created_at,
-                link_count,
+            |(id, t_id, name, created_by, created_by_display_name, created_at, link_count)| {
+                TripFolder {
+                    id,
+                    trip_id: t_id,
+                    name,
+                    created_by,
+                    created_by_display_name,
+                    created_at,
+                    link_count,
+                }
             },
         )
         .collect();
@@ -415,34 +399,36 @@ pub async fn list_folders(
 pub async fn create_folder(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<CreateFolderRequest>,
 ) -> AppResult<Json<TripFolder>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
-    let row: (Uuid, String, Uuid, DateTime<Utc>) = sqlx::query_as(
-        "INSERT INTO trip_folders (group_id, name, created_by)
+    let row: (Uuid, Uuid, String, Uuid, DateTime<Utc>) = sqlx::query_as(
+        "INSERT INTO trip_folders (trip_id, name, created_by)
          VALUES ($1, $2, $3)
-         RETURNING id, name, created_by, created_at",
+         RETURNING id, trip_id, name, created_by, created_at",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.name.trim())
     .bind(user.id)
     .fetch_one(&state.db)
     .await?;
 
     let display: (String,) = sqlx::query_as("SELECT display_name FROM users WHERE id = $1")
-        .bind(row.2)
+        .bind(row.3)
         .fetch_one(&state.db)
         .await?;
 
     Ok(Json(TripFolder {
         id: row.0,
-        name: row.1,
-        created_by: row.2,
+        trip_id: row.1,
+        name: row.2,
+        created_by: row.3,
         created_by_display_name: display.0,
-        created_at: row.3,
+        created_at: row.4,
         link_count: 0,
     }))
 }
@@ -450,12 +436,13 @@ pub async fn create_folder(
 pub async fn update_folder(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, folder_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, folder_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateFolderRequest>,
 ) -> AppResult<Json<TripFolder>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_folder_in_group(&state.db, folder_id, group_id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_folder_in_trip(&state.db, folder_id, trip_id).await?;
 
     sqlx::query("UPDATE trip_folders SET name = $1 WHERE id = $2")
         .bind(payload.name.trim())
@@ -469,14 +456,15 @@ pub async fn update_folder(
 pub async fn delete_folder(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, folder_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, folder_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
     // ON DELETE SET NULL moves the links back to the "unsorted" bucket.
-    let result = sqlx::query("DELETE FROM trip_folders WHERE id = $1 AND group_id = $2")
+    let result = sqlx::query("DELETE FROM trip_folders WHERE id = $1 AND trip_id = $2")
         .bind(folder_id)
-        .bind(group_id)
+        .bind(trip_id)
         .execute(&state.db)
         .await?;
 
@@ -489,33 +477,23 @@ pub async fn delete_folder(
 pub async fn move_link(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, link_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, link_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<MoveLinkRequest>,
 ) -> AppResult<Json<TripLink>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_links WHERE id = $1 AND group_id = $2")
-            .bind(link_id)
-            .bind(group_id)
-            .fetch_optional(&state.db)
-            .await?;
-    if exists.is_none() {
-        return Err(AppError::NotFound("link not found".into()));
-    }
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_link_in_trip(&state.db, link_id, trip_id).await?;
 
     if let Some(folder_id) = payload.folder_id {
-        ensure_folder_in_group(&state.db, folder_id, group_id).await?;
+        ensure_folder_in_trip(&state.db, folder_id, trip_id).await?;
     }
 
-    // Drop at the bottom of the target bucket so moving never collides with
-    // an existing order.
     let next_position: (i32,) = sqlx::query_as(
         "SELECT COALESCE(MAX(position), -1) + 1
            FROM trip_links
-           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+           WHERE trip_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.folder_id)
     .fetch_one(&state.db)
     .await?;
@@ -527,28 +505,27 @@ pub async fn move_link(
         .execute(&state.db)
         .await?;
 
-    let link = fetch_link(&state.db, link_id, user.id).await?;
-    Ok(Json(link))
+    Ok(Json(fetch_link(&state.db, link_id, user.id).await?))
 }
 
 pub async fn reorder_links(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<ReorderLinksRequest>,
 ) -> AppResult<Json<Vec<TripLink>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
     if let Some(folder_id) = payload.folder_id {
-        ensure_folder_in_group(&state.db, folder_id, group_id).await?;
+        ensure_folder_in_trip(&state.db, folder_id, trip_id).await?;
     }
 
     let mut tx = state.db.begin().await?;
-    // Temporarily bump everyone so we can freely rewrite positions.
     sqlx::query(
         "UPDATE trip_links SET position = position + 100000
-           WHERE group_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
+           WHERE trip_id = $1 AND folder_id IS NOT DISTINCT FROM $2",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.folder_id)
     .execute(&mut *tx)
     .await?;
@@ -556,12 +533,12 @@ pub async fn reorder_links(
     for (idx, id) in payload.ids.iter().enumerate() {
         let res = sqlx::query(
             "UPDATE trip_links SET position = $1
-               WHERE id = $2 AND group_id = $3
+               WHERE id = $2 AND trip_id = $3
                  AND folder_id IS NOT DISTINCT FROM $4",
         )
         .bind(idx as i32)
         .bind(id)
-        .bind(group_id)
+        .bind(trip_id)
         .bind(payload.folder_id)
         .execute(&mut *tx)
         .await?;
@@ -571,15 +548,14 @@ pub async fn reorder_links(
     }
     tx.commit().await?;
 
-    let links = fetch_links(&state.db, group_id, user.id).await?;
-    Ok(Json(links))
+    Ok(Json(fetch_links(&state.db, trip_id, user.id).await?))
 }
 
-async fn ensure_folder_in_group(pool: &PgPool, folder_id: Uuid, group_id: Uuid) -> AppResult<()> {
+async fn ensure_folder_in_trip(pool: &PgPool, folder_id: Uuid, trip_id: Uuid) -> AppResult<()> {
     let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_folders WHERE id = $1 AND group_id = $2")
+        sqlx::query_as("SELECT id FROM trip_folders WHERE id = $1 AND trip_id = $2")
             .bind(folder_id)
-            .bind(group_id)
+            .bind(trip_id)
             .fetch_optional(pool)
             .await?;
     if exists.is_none() {
@@ -588,9 +564,22 @@ async fn ensure_folder_in_group(pool: &PgPool, folder_id: Uuid, group_id: Uuid) 
     Ok(())
 }
 
+async fn ensure_link_in_trip(pool: &PgPool, link_id: Uuid, trip_id: Uuid) -> AppResult<()> {
+    let exists: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM trip_links WHERE id = $1 AND trip_id = $2")
+            .bind(link_id)
+            .bind(trip_id)
+            .fetch_optional(pool)
+            .await?;
+    if exists.is_none() {
+        return Err(AppError::NotFound("link not found".into()));
+    }
+    Ok(())
+}
+
 async fn load_folder(pool: &PgPool, folder_id: Uuid) -> AppResult<TripFolder> {
-    let row: (Uuid, String, Uuid, String, DateTime<Utc>, i64) = sqlx::query_as(
-        "SELECT f.id, f.name, f.created_by, u.display_name, f.created_at,
+    let row: (Uuid, Uuid, String, Uuid, String, DateTime<Utc>, i64) = sqlx::query_as(
+        "SELECT f.id, f.trip_id, f.name, f.created_by, u.display_name, f.created_at,
                 COALESCE(COUNT(tl.id), 0)::BIGINT AS link_count
          FROM trip_folders f
          INNER JOIN users u ON u.id = f.created_by
@@ -604,22 +593,24 @@ async fn load_folder(pool: &PgPool, folder_id: Uuid) -> AppResult<TripFolder> {
 
     Ok(TripFolder {
         id: row.0,
-        name: row.1,
-        created_by: row.2,
-        created_by_display_name: row.3,
-        created_at: row.4,
-        link_count: row.5,
+        trip_id: row.1,
+        name: row.2,
+        created_by: row.3,
+        created_by_display_name: row.4,
+        created_at: row.5,
+        link_count: row.6,
     })
 }
 
 // ---------- internal helpers ----------
 
 // We used to use a huge tuple here but sqlx's FromRow is capped (around 17
-// elements), and the query now fetches 19 columns. A named struct is also
+// elements), and the query now fetches 20 columns. A named struct is also
 // easier to maintain as more columns get added.
 #[derive(sqlx::FromRow)]
 struct LinkRow {
     id: Uuid,
+    trip_id: Uuid,
     url: String,
     title: Option<String>,
     description: Option<String>,
@@ -641,7 +632,7 @@ struct LinkRow {
 }
 
 const LINK_SELECT: &str = "\
-    SELECT tl.id, tl.url, tl.title, tl.description, tl.image_url, tl.site_name, \
+    SELECT tl.id, tl.trip_id, tl.url, tl.title, tl.description, tl.image_url, tl.site_name, \
            tl.title_override, tl.image_override, \
            tl.note, tl.added_by, u.display_name AS added_by_display_name, \
            tl.created_at, tl.fetched_at, \
@@ -657,6 +648,7 @@ const LINK_SELECT: &str = "\
 fn row_into_link(row: LinkRow) -> TripLink {
     TripLink {
         id: row.id,
+        trip_id: row.trip_id,
         url: row.url,
         title: row.title,
         description: row.description,
@@ -678,15 +670,15 @@ fn row_into_link(row: LinkRow) -> TripLink {
     }
 }
 
-async fn fetch_links(pool: &PgPool, group_id: Uuid, me: Uuid) -> AppResult<Vec<TripLink>> {
+async fn fetch_links(pool: &PgPool, trip_id: Uuid, me: Uuid) -> AppResult<Vec<TripLink>> {
     let sql = format!(
         "{LINK_SELECT} \
-         WHERE tl.group_id = $1 \
+         WHERE tl.trip_id = $1 \
          GROUP BY tl.id, u.display_name, f.name \
          ORDER BY tl.position ASC, tl.created_at ASC"
     );
     let rows: Vec<LinkRow> = sqlx::query_as(&sql)
-        .bind(group_id)
+        .bind(trip_id)
         .bind(me)
         .fetch_all(pool)
         .await?;

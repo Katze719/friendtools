@@ -10,7 +10,8 @@ import CalendarOverviewPage from "./calendar/OverviewPage";
 import ShoppingOverviewPage from "./shopping/OverviewPage";
 import SplitwiseOverviewPage from "./splitwise/OverviewPage";
 import SplitwiseNewExpensePage from "./splitwise/NewExpensePage";
-import TripsOverviewPage from "./trips/OverviewPage";
+import TripDetailPage from "./trips/TripDetailPage";
+import TripsListPage from "./trips/TripsListPage";
 
 export interface ToolRoute {
   /** Path relative to the tool's base within a group
@@ -54,7 +55,10 @@ export const tools: Tool[] = [
     basePath: "trips",
     icon: Plane,
     accent: "bg-sky-500",
-    routes: [{ path: "/", component: TripsOverviewPage }],
+    routes: [
+      { path: "/", component: TripsListPage },
+      { path: "/:tripId", component: TripDetailPage },
+    ],
   },
   {
     id: "calendar",

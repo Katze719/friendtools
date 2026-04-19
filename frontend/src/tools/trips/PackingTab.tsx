@@ -8,8 +8,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../../api/client";
-import type { GroupDetail, TripPackingItem } from "../../api/types";
+import type { GroupDetail, Trip, TripPackingItem } from "../../api/types";
 import { useConfirm, useToast } from "../../ui/UIProvider";
+import HelpBanner from "../../components/HelpBanner";
 import { tripsApi } from "./api";
 
 /**
@@ -17,7 +18,13 @@ import { tripsApi } from "./api";
  * never have to pick from a fixed list, matching the "optional everything"
  * philosophy.
  */
-export default function PackingTab({ group }: { group: GroupDetail }) {
+export default function PackingTab({
+  group,
+  trip,
+}: {
+  group: GroupDetail;
+  trip: Trip;
+}) {
   const { t } = useTranslation();
   const toast = useToast();
   const [items, setItems] = useState<TripPackingItem[] | null>(null);
@@ -25,12 +32,12 @@ export default function PackingTab({ group }: { group: GroupDetail }) {
 
   const reload = useCallback(() => {
     tripsApi
-      .listPacking(group.id)
+      .listPacking(group.id, trip.id)
       .then(setItems)
       .catch((e) =>
         toast.error(e instanceof ApiError ? e.message : t("common.error")),
       );
-  }, [group.id, t, toast]);
+  }, [group.id, trip.id, t, toast]);
 
   useEffect(() => {
     reload();
@@ -60,6 +67,13 @@ export default function PackingTab({ group }: { group: GroupDetail }) {
 
   return (
     <div className="space-y-4">
+      <HelpBanner
+        storageKey="friendflow.banner.trip.packing"
+        title={t("trips.packing.bannerTitle")}
+      >
+        {t("trips.packing.bannerBody")}
+      </HelpBanner>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">{t("trips.packing.title")}</h2>
@@ -95,6 +109,7 @@ export default function PackingTab({ group }: { group: GroupDetail }) {
       {showAdd && (
         <AddPackingForm
           group={group}
+          trip={trip}
           onDone={(created) => {
             setShowAdd(false);
             if (created) reload();
@@ -114,6 +129,7 @@ export default function PackingTab({ group }: { group: GroupDetail }) {
           items={items}
           groupedByCategory={byCategory}
           group={group}
+          trip={trip}
           onChange={setItems}
           onChanged={reload}
         />
@@ -126,12 +142,14 @@ function PackingList({
   items,
   groupedByCategory,
   group,
+  trip,
   onChange,
   onChanged,
 }: {
   items: TripPackingItem[];
   groupedByCategory: [string, TripPackingItem[]][];
   group: GroupDetail;
+  trip: Trip;
   onChange: (items: TripPackingItem[]) => void;
   onChanged: () => void;
 }) {
@@ -146,6 +164,7 @@ function PackingList({
     try {
       const result = await tripsApi.reorderPacking(
         group.id,
+        trip.id,
         nextItems.map((i) => i.id),
       );
       onChange(result);
@@ -184,7 +203,7 @@ function PackingList({
     );
     onChange(optimistic);
     try {
-      const updated = await tripsApi.togglePacking(group.id, item.id);
+      const updated = await tripsApi.togglePacking(group.id, trip.id, item.id);
       onChange(items.map((i) => (i.id === updated.id ? updated : i)));
     } catch (e) {
       onChange(items);
@@ -201,7 +220,7 @@ function PackingList({
     });
     if (!ok) return;
     try {
-      await tripsApi.deletePacking(group.id, item.id);
+      await tripsApi.deletePacking(group.id, trip.id, item.id);
       onChanged();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t("common.error"));
@@ -223,6 +242,7 @@ function PackingList({
                 key={item.id}
                 item={item}
                 group={group}
+                trip={trip}
                 onDragStart={onDragStart}
                 onDragOver={onDragOver}
                 onDropOn={onDropOn}
@@ -241,6 +261,7 @@ function PackingList({
 function PackingRow({
   item,
   group,
+  trip,
   onDragStart,
   onDragOver,
   onDropOn,
@@ -250,6 +271,7 @@ function PackingRow({
 }: {
   item: TripPackingItem;
   group: GroupDetail;
+  trip: Trip;
   onDragStart: (id: string) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDropOn: (id: string) => void;
@@ -289,6 +311,7 @@ function PackingRow({
         <EditPackingInline
           item={item}
           group={group}
+          trip={trip}
           onDone={(changed) => {
             setEditing(false);
             if (changed) onReload();
@@ -348,10 +371,12 @@ function PackingRow({
 function EditPackingInline({
   item,
   group,
+  trip,
   onDone,
 }: {
   item: TripPackingItem;
   group: GroupDetail;
+  trip: Trip;
   onDone: (changed: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -368,7 +393,7 @@ function EditPackingInline({
     if (!trimmed) return;
     setSaving(true);
     try {
-      await tripsApi.updatePacking(group.id, item.id, {
+      await tripsApi.updatePacking(group.id, trip.id, item.id, {
         name: trimmed,
         quantity: quantity.trim(),
         category: category.trim(),
@@ -434,9 +459,11 @@ function EditPackingInline({
 
 function AddPackingForm({
   group,
+  trip,
   onDone,
 }: {
   group: GroupDetail;
+  trip: Trip;
   onDone: (created: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -453,7 +480,7 @@ function AddPackingForm({
     if (!trimmed) return;
     setSaving(true);
     try {
-      await tripsApi.createPacking(group.id, {
+      await tripsApi.createPacking(group.id, trip.id, {
         name: trimmed,
         quantity: quantity.trim(),
         category: category.trim(),

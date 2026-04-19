@@ -12,12 +12,13 @@ use crate::{
     auth::middleware::AuthUser,
     error::{AppError, AppResult},
     state::AppState,
+    trips::trip::ensure_in_group,
 };
 
 #[derive(Debug, Serialize)]
 pub struct ItineraryItem {
     pub id: Uuid,
-    pub group_id: Uuid,
+    pub trip_id: Uuid,
     pub day_date: NaiveDate,
     pub title: String,
     pub start_time: Option<NaiveTime>,
@@ -95,20 +96,22 @@ where
 pub async fn list(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<Vec<ItineraryItem>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    Ok(Json(fetch_all(&state.db, group_id).await?))
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    Ok(Json(fetch_all(&state.db, trip_id).await?))
 }
 
 pub async fn create(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<CreateRequest>,
 ) -> AppResult<Json<ItineraryItem>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
     if let (Some(s), Some(e)) = (payload.start_time, payload.end_time) {
         if s > e {
             return Err(AppError::BadRequest(
@@ -117,26 +120,26 @@ pub async fn create(
         }
     }
     if let Some(link_id) = payload.link_id {
-        ensure_link_in_group(&state.db, link_id, group_id).await?;
+        ensure_link_in_trip(&state.db, link_id, trip_id).await?;
     }
 
     let next_position: (i32,) = sqlx::query_as(
         "SELECT COALESCE(MAX(position), -1) + 1
            FROM trip_itinerary_items
-           WHERE group_id = $1 AND day_date = $2",
+           WHERE trip_id = $1 AND day_date = $2",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.day_date)
     .fetch_one(&state.db)
     .await?;
 
     let id: (Uuid,) = sqlx::query_as(
         "INSERT INTO trip_itinerary_items
-            (group_id, day_date, title, start_time, end_time, location, note, link_id, position, created_by)
+            (trip_id, day_date, title, start_time, end_time, location, note, link_id, position, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING id",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.day_date)
     .bind(payload.title.trim())
     .bind(payload.start_time)
@@ -155,12 +158,13 @@ pub async fn create(
 pub async fn update(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, item_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateRequest>,
 ) -> AppResult<Json<ItineraryItem>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_in_group(&state.db, item_id, group_id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_in_trip(&state.db, item_id, trip_id).await?;
 
     if let Some(day_date) = payload.day_date {
         sqlx::query(
@@ -214,7 +218,7 @@ pub async fn update(
     }
     if let Some(link_opt) = payload.link_id {
         if let Some(link_id) = link_opt {
-            ensure_link_in_group(&state.db, link_id, group_id).await?;
+            ensure_link_in_trip(&state.db, link_id, trip_id).await?;
         }
         sqlx::query(
             "UPDATE trip_itinerary_items SET link_id = $1, updated_at = NOW() WHERE id = $2",
@@ -231,13 +235,14 @@ pub async fn update(
 pub async fn delete(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, item_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
-    let res = sqlx::query("DELETE FROM trip_itinerary_items WHERE id = $1 AND group_id = $2")
+    let res = sqlx::query("DELETE FROM trip_itinerary_items WHERE id = $1 AND trip_id = $2")
         .bind(item_id)
-        .bind(group_id)
+        .bind(trip_id)
         .execute(&state.db)
         .await?;
 
@@ -250,17 +255,18 @@ pub async fn delete(
 pub async fn reorder(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<ReorderRequest>,
 ) -> AppResult<Json<Vec<ItineraryItem>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
     let mut tx = state.db.begin().await?;
     sqlx::query(
         "UPDATE trip_itinerary_items SET position = position + 100000
-           WHERE group_id = $1 AND day_date = $2",
+           WHERE trip_id = $1 AND day_date = $2",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.day_date)
     .execute(&mut *tx)
     .await?;
@@ -269,11 +275,11 @@ pub async fn reorder(
         let res = sqlx::query(
             "UPDATE trip_itinerary_items
                 SET position = $1, updated_at = NOW()
-                WHERE id = $2 AND group_id = $3 AND day_date = $4",
+                WHERE id = $2 AND trip_id = $3 AND day_date = $4",
         )
         .bind(idx as i32)
         .bind(id)
-        .bind(group_id)
+        .bind(trip_id)
         .bind(payload.day_date)
         .execute(&mut *tx)
         .await?;
@@ -283,16 +289,16 @@ pub async fn reorder(
     }
     tx.commit().await?;
 
-    Ok(Json(fetch_all(&state.db, group_id).await?))
+    Ok(Json(fetch_all(&state.db, trip_id).await?))
 }
 
 // ---------- helpers ----------
 
-async fn ensure_in_group(pool: &PgPool, item_id: Uuid, group_id: Uuid) -> AppResult<()> {
+async fn ensure_in_trip(pool: &PgPool, item_id: Uuid, trip_id: Uuid) -> AppResult<()> {
     let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_itinerary_items WHERE id = $1 AND group_id = $2")
+        sqlx::query_as("SELECT id FROM trip_itinerary_items WHERE id = $1 AND trip_id = $2")
             .bind(item_id)
-            .bind(group_id)
+            .bind(trip_id)
             .fetch_optional(pool)
             .await?;
     if exists.is_none() {
@@ -301,16 +307,16 @@ async fn ensure_in_group(pool: &PgPool, item_id: Uuid, group_id: Uuid) -> AppRes
     Ok(())
 }
 
-async fn ensure_link_in_group(pool: &PgPool, link_id: Uuid, group_id: Uuid) -> AppResult<()> {
+async fn ensure_link_in_trip(pool: &PgPool, link_id: Uuid, trip_id: Uuid) -> AppResult<()> {
     let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_links WHERE id = $1 AND group_id = $2")
+        sqlx::query_as("SELECT id FROM trip_links WHERE id = $1 AND trip_id = $2")
             .bind(link_id)
-            .bind(group_id)
+            .bind(trip_id)
             .fetch_optional(pool)
             .await?;
     if exists.is_none() {
         return Err(AppError::BadRequest(
-            "referenced link does not belong to this group".into(),
+            "referenced link does not belong to this trip".into(),
         ));
     }
     Ok(())
@@ -336,7 +342,7 @@ type Row = (
 );
 
 const SELECT: &str = "\
-    SELECT i.id, i.group_id, i.day_date, i.title, i.start_time, i.end_time, \
+    SELECT i.id, i.trip_id, i.day_date, i.title, i.start_time, i.end_time, \
            i.location, i.note, i.link_id, l.title, l.url, i.position, \
            i.created_by, u.display_name, i.created_at, i.updated_at \
       FROM trip_itinerary_items i \
@@ -346,7 +352,7 @@ const SELECT: &str = "\
 fn row_into_item(row: Row) -> ItineraryItem {
     ItineraryItem {
         id: row.0,
-        group_id: row.1,
+        trip_id: row.1,
         day_date: row.2,
         title: row.3,
         start_time: row.4,
@@ -364,15 +370,15 @@ fn row_into_item(row: Row) -> ItineraryItem {
     }
 }
 
-async fn fetch_all(pool: &PgPool, group_id: Uuid) -> AppResult<Vec<ItineraryItem>> {
+async fn fetch_all(pool: &PgPool, trip_id: Uuid) -> AppResult<Vec<ItineraryItem>> {
     let sql = format!(
         "{SELECT} \
-         WHERE i.group_id = $1 \
+         WHERE i.trip_id = $1 \
          ORDER BY i.day_date ASC, \
                   (i.start_time IS NULL), i.start_time ASC, \
                   i.position ASC, i.created_at ASC"
     );
-    let rows: Vec<Row> = sqlx::query_as(&sql).bind(group_id).fetch_all(pool).await?;
+    let rows: Vec<Row> = sqlx::query_as(&sql).bind(trip_id).fetch_all(pool).await?;
     Ok(rows.into_iter().map(row_into_item).collect())
 }
 

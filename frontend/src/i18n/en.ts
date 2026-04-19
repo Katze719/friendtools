@@ -261,6 +261,38 @@ const en = {
     },
   },
   trips: {
+    list: {
+      title: "Trip board",
+      subtitle: "All planned trips in this group.",
+      bannerTitle: "Multiple trips per group",
+      bannerBody:
+        "Create a separate trip for each vacation. Every trip has its own links, itinerary, packing list and budget.",
+      newTrip: "New trip",
+      emptyTitle: "No trips yet",
+      emptyHint:
+        "Add your first trip - e.g. 'Lisbon in May'. You can fill in destinations and dates later.",
+      createFirst: "Create first trip",
+      create: "Create trip",
+      nameLabel: "Trip name",
+      namePlaceholder: "e.g. Lisbon in May",
+      datesHint: "Dates are optional - you can change them later in the Info tab.",
+      deleted: "Trip deleted.",
+      deleteTitle: "Delete trip?",
+      deleteConfirm:
+        "Delete '{{name}}' including all of its links, itinerary entries and packing items?",
+      delete: "Delete trip",
+      noDates: "No dates set",
+      noDestinations: "No destinations",
+      status: {
+        upcoming: "Upcoming",
+        ongoing: "Ongoing",
+        past: "Past",
+        unscheduled: "Unscheduled",
+      },
+    },
+    detail: {
+      backToList: "All trips",
+    },
     overview: {
       backToGroup: "Back to group",
       title: "Trip board",
@@ -329,6 +361,18 @@ const en = {
       info: "Info",
     },
     info: {
+      bannerTitle: "The foundation of this trip",
+      bannerBody:
+        "Set name, dates, destinations and budget for this trip here. These values drive the itinerary day layout and the budget widget (linked to the group's Splitwise tool).",
+      nameTitle: "Trip",
+      rename: "Rename",
+      renamed: "Trip renamed.",
+      deleteTrip: "Delete trip",
+      deleteTitle: "Delete trip?",
+      deleteConfirm:
+        "Delete '{{name}}' including all of its links, itinerary entries and packing items?",
+      budgetGroupWide:
+        "Note: spend currently reflects the whole group, not only this trip.",
       datesTitle: "Trip dates",
       startDate: "Arrival",
       endDate: "Departure",
@@ -358,6 +402,9 @@ const en = {
       errorBudget: "Budget must be a positive number.",
     },
     packing: {
+      bannerTitle: "Shared checklist",
+      bannerBody:
+        "Everyone in the group sees the same list and can check items off. Categories and assignees are optional - use them to split up e.g. 'Tent' and 'Food'.",
       title: "Packing list",
       add: "Add",
       empty: "Nothing on the list yet.",
@@ -377,9 +424,12 @@ const en = {
       deleteConfirm: "Remove '{{name}}' from the list?",
     },
     itinerary: {
+      bannerTitle: "Day-by-day programme",
+      bannerBody:
+        "Add activities, transfers or reservations per day - with or without a time. Calendar events from the group calendar automatically show up here when they fall inside the trip period.",
       emptyTitle: "No itinerary yet",
       emptyHint:
-        "Add activities, transfers or reservations - with or without times.",
+        "Add activities, transfers or reservations - with or without times. Tip: calendar events show up here automatically.",
       addFirst: "Add first entry",
       addForDay: "Add entry for this day",
       dayEmpty: "Nothing planned for this day yet.",
@@ -393,6 +443,10 @@ const en = {
       noLink: "No linked URL",
       deleteTitle: "Delete entry?",
       deleteConfirm: "Remove '{{title}}' from the itinerary?",
+      fromCalendar: "From calendar",
+      openInCalendar: "Open in calendar",
+      sourceTrip: "Itinerary",
+      sourceCalendar: "Calendar",
     },
   },
   calendar: {
@@ -437,6 +491,9 @@ const en = {
       dayTitle: "Events on {{date}}",
       dayEmpty: "Nothing planned on this day.",
       hintPickDay: "Tap a day to see or add events.",
+      fromTrip: "From itinerary",
+      fromTripNamed: "Trip: {{name}}",
+      openInTrip: "Open in trip planner",
     },
     grid: {
       prevMonth: "Previous month",

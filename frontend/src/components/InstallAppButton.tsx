@@ -1,5 +1,6 @@
 import { Download, Share, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -109,23 +110,39 @@ export default function InstallAppButton({
 
 function IosInstallSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    // Lock body scroll while the sheet is open so the background doesn't
+    // jiggle behind the backdrop.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // Render into document.body. Without the portal, the dialog would inherit
+  // the header's containing block (the header uses `backdrop-blur`, which
+  // creates a new containing block for fixed descendants). That's why the
+  // dialog previously appeared confined to the header area.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="install-sheet-title"
       onClick={onClose}
     >
       <div
-        className="card my-auto max-h-full w-full max-w-sm space-y-4 overflow-y-auto p-5"
+        className="card my-auto w-full max-w-md space-y-5 overflow-y-auto p-6 shadow-2xl sm:max-w-lg sm:p-7"
+        style={{ maxHeight: "100%" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -133,53 +150,63 @@ function IosInstallSheet({ onClose }: { onClose: () => void }) {
             <img
               src="/favicon-192.png"
               alt=""
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-xl"
+              width={56}
+              height={56}
+              className="h-14 w-14 rounded-2xl shadow-sm"
             />
             <div>
-              <h3 className="font-semibold">{t("install.ios.title")}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <h3
+                id="install-sheet-title"
+                className="text-lg font-semibold leading-tight sm:text-xl"
+              >
+                {t("install.ios.title")}
+              </h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {t("install.ios.subtitle")}
               </p>
             </div>
           </div>
           <button
             type="button"
-            className="btn-ghost -mr-2 -mt-2"
+            className="btn-ghost -mr-2 -mt-2 shrink-0"
             onClick={onClose}
             aria-label={t("common.close")}
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-        <ol className="space-y-3 text-sm text-slate-700 dark:text-slate-200">
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
+        <ol className="space-y-4 text-base text-slate-700 dark:text-slate-200">
+          <li className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
               1
             </span>
-            <span className="flex flex-wrap items-center gap-1">
+            <span className="flex flex-wrap items-center gap-1 pt-0.5">
               {t("install.ios.step1")}
-              <Share className="mx-1 inline h-4 w-4 text-brand-600 dark:text-brand-400" />
+              <Share className="mx-1 inline h-5 w-5 text-brand-600 dark:text-brand-400" />
             </span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
+          <li className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
               2
             </span>
-            <span>{t("install.ios.step2")}</span>
+            <span className="pt-0.5">{t("install.ios.step2")}</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
+          <li className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
               3
             </span>
-            <span>{t("install.ios.step3")}</span>
+            <span className="pt-0.5">{t("install.ios.step3")}</span>
           </li>
         </ol>
-        <button type="button" className="btn-primary w-full" onClick={onClose}>
+        <button
+          type="button"
+          className="btn-primary w-full justify-center py-2.5 text-base"
+          onClick={onClose}
+        >
           {t("common.close")}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

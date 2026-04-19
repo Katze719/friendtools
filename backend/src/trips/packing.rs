@@ -12,12 +12,13 @@ use crate::{
     auth::middleware::AuthUser,
     error::{AppError, AppResult},
     state::AppState,
+    trips::trip::ensure_in_group,
 };
 
 #[derive(Debug, Serialize)]
 pub struct PackingItem {
     pub id: Uuid,
-    pub group_id: Uuid,
+    pub trip_id: Uuid,
     pub name: String,
     pub quantity: String,
     pub category: String,
@@ -78,40 +79,40 @@ where
 pub async fn list(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<Vec<PackingItem>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    let items = fetch_all(&state.db, group_id).await?;
-    Ok(Json(items))
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    Ok(Json(fetch_all(&state.db, trip_id).await?))
 }
 
 pub async fn create(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<CreateRequest>,
 ) -> AppResult<Json<PackingItem>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
     if let Some(assignee) = payload.assigned_to {
         ensure_member_of(&state, group_id, assignee).await?;
     }
 
-    // Append at the bottom so the new item does not bump anyone's reordering.
     let next_position: (i32,) = sqlx::query_as(
-        "SELECT COALESCE(MAX(position), -1) + 1 FROM trip_packing_items WHERE group_id = $1",
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM trip_packing_items WHERE trip_id = $1",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .fetch_one(&state.db)
     .await?;
 
     let id: (Uuid,) = sqlx::query_as(
         "INSERT INTO trip_packing_items
-            (group_id, name, quantity, category, assigned_to, position, created_by)
+            (trip_id, name, quantity, category, assigned_to, position, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id",
     )
-    .bind(group_id)
+    .bind(trip_id)
     .bind(payload.name.trim())
     .bind(payload.quantity.trim())
     .bind(payload.category.trim())
@@ -121,19 +122,19 @@ pub async fn create(
     .fetch_one(&state.db)
     .await?;
 
-    let item = fetch_one(&state.db, id.0).await?;
-    Ok(Json(item))
+    Ok(Json(fetch_one(&state.db, id.0).await?))
 }
 
 pub async fn update(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, item_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateRequest>,
 ) -> AppResult<Json<PackingItem>> {
     payload.validate()?;
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_in_group(&state.db, item_id, group_id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_in_trip(&state.db, item_id, trip_id).await?;
 
     if let Some(name) = payload.name.as_deref() {
         sqlx::query("UPDATE trip_packing_items SET name = $1, updated_at = NOW() WHERE id = $2")
@@ -182,17 +183,17 @@ pub async fn update(
         .await?;
     }
 
-    let item = fetch_one(&state.db, item_id).await?;
-    Ok(Json(item))
+    Ok(Json(fetch_one(&state.db, item_id).await?))
 }
 
 pub async fn toggle(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, item_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<PackingItem>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_in_group(&state.db, item_id, group_id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
+    ensure_in_trip(&state.db, item_id, trip_id).await?;
 
     sqlx::query(
         "UPDATE trip_packing_items
@@ -209,13 +210,14 @@ pub async fn toggle(
 pub async fn delete(
     State(state): State<AppState>,
     user: AuthUser,
-    Path((group_id, item_id)): Path<(Uuid, Uuid)>,
+    Path((group_id, trip_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
-    let res = sqlx::query("DELETE FROM trip_packing_items WHERE id = $1 AND group_id = $2")
+    let res = sqlx::query("DELETE FROM trip_packing_items WHERE id = $1 AND trip_id = $2")
         .bind(item_id)
-        .bind(group_id)
+        .bind(trip_id)
         .execute(&state.db)
         .await?;
 
@@ -228,16 +230,15 @@ pub async fn delete(
 pub async fn reorder(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(group_id): Path<Uuid>,
+    Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<ReorderRequest>,
 ) -> AppResult<Json<Vec<PackingItem>>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+    ensure_in_group(&state.db, trip_id, group_id).await?;
 
     let mut tx = state.db.begin().await?;
-    // Push out of the way first to avoid UNIQUE/CHECK constraint collisions
-    // while rewriting positions.
-    sqlx::query("UPDATE trip_packing_items SET position = position + 100000 WHERE group_id = $1")
-        .bind(group_id)
+    sqlx::query("UPDATE trip_packing_items SET position = position + 100000 WHERE trip_id = $1")
+        .bind(trip_id)
         .execute(&mut *tx)
         .await?;
 
@@ -245,11 +246,11 @@ pub async fn reorder(
         let res = sqlx::query(
             "UPDATE trip_packing_items
                 SET position = $1, updated_at = NOW()
-                WHERE id = $2 AND group_id = $3",
+                WHERE id = $2 AND trip_id = $3",
         )
         .bind(idx as i32)
         .bind(id)
-        .bind(group_id)
+        .bind(trip_id)
         .execute(&mut *tx)
         .await?;
         if res.rows_affected() == 0 {
@@ -258,17 +259,16 @@ pub async fn reorder(
     }
     tx.commit().await?;
 
-    let items = fetch_all(&state.db, group_id).await?;
-    Ok(Json(items))
+    Ok(Json(fetch_all(&state.db, trip_id).await?))
 }
 
 // ---------- helpers ----------
 
-async fn ensure_in_group(pool: &PgPool, item_id: Uuid, group_id: Uuid) -> AppResult<()> {
+async fn ensure_in_trip(pool: &PgPool, item_id: Uuid, trip_id: Uuid) -> AppResult<()> {
     let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM trip_packing_items WHERE id = $1 AND group_id = $2")
+        sqlx::query_as("SELECT id FROM trip_packing_items WHERE id = $1 AND trip_id = $2")
             .bind(item_id)
-            .bind(group_id)
+            .bind(trip_id)
             .fetch_optional(pool)
             .await?;
     if exists.is_none() {
@@ -309,7 +309,7 @@ type Row = (
 );
 
 const SELECT: &str = "\
-    SELECT p.id, p.group_id, p.name, p.quantity, p.category, p.is_packed, \
+    SELECT p.id, p.trip_id, p.name, p.quantity, p.category, p.is_packed, \
            p.assigned_to, a.display_name, p.position, p.created_by, c.display_name, \
            p.created_at, p.updated_at \
       FROM trip_packing_items p \
@@ -319,7 +319,7 @@ const SELECT: &str = "\
 fn row_into_item(row: Row) -> PackingItem {
     PackingItem {
         id: row.0,
-        group_id: row.1,
+        trip_id: row.1,
         name: row.2,
         quantity: row.3,
         category: row.4,
@@ -334,13 +334,13 @@ fn row_into_item(row: Row) -> PackingItem {
     }
 }
 
-async fn fetch_all(pool: &PgPool, group_id: Uuid) -> AppResult<Vec<PackingItem>> {
+async fn fetch_all(pool: &PgPool, trip_id: Uuid) -> AppResult<Vec<PackingItem>> {
     let sql = format!(
         "{SELECT} \
-         WHERE p.group_id = $1 \
+         WHERE p.trip_id = $1 \
          ORDER BY p.position ASC, p.created_at ASC"
     );
-    let rows: Vec<Row> = sqlx::query_as(&sql).bind(group_id).fetch_all(pool).await?;
+    let rows: Vec<Row> = sqlx::query_as(&sql).bind(trip_id).fetch_all(pool).await?;
     Ok(rows.into_iter().map(row_into_item).collect())
 }
 

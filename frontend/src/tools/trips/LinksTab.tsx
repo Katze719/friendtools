@@ -23,7 +23,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../../api/client";
-import type { GroupDetail, TripFolder, TripLink } from "../../api/types";
+import type { GroupDetail, Trip, TripFolder, TripLink } from "../../api/types";
 import { formatDate } from "../../lib/format";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tripsApi } from "./api";
@@ -45,10 +45,10 @@ function sectionKey(id: string | null): string {
   return id ?? UNSORTED_KEY;
 }
 
-function readCollapsed(groupId: string | undefined): Set<string> {
-  if (!groupId || typeof window === "undefined") return new Set();
+function readCollapsed(tripId: string | undefined): Set<string> {
+  if (!tripId || typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(COLLAPSE_STORAGE_PREFIX + groupId);
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_PREFIX + tripId);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return new Set();
@@ -58,11 +58,11 @@ function readCollapsed(groupId: string | undefined): Set<string> {
   }
 }
 
-function writeCollapsed(groupId: string | undefined, collapsed: Set<string>) {
-  if (!groupId) return;
+function writeCollapsed(tripId: string | undefined, collapsed: Set<string>) {
+  if (!tripId) return;
   try {
     localStorage.setItem(
-      COLLAPSE_STORAGE_PREFIX + groupId,
+      COLLAPSE_STORAGE_PREFIX + tripId,
       JSON.stringify([...collapsed]),
     );
   } catch {
@@ -77,7 +77,13 @@ function writeCollapsed(groupId: string | undefined, collapsed: Set<string>) {
  */
 const DRAG_MIME = "application/x-friendflow-trip-link";
 
-export default function LinksTab({ group }: { group: GroupDetail }) {
+export default function LinksTab({
+  group,
+  trip,
+}: {
+  group: GroupDetail;
+  trip: Trip;
+}) {
   const { t } = useTranslation();
   const toast = useToast();
   const [links, setLinks] = useState<TripLink[] | null>(null);
@@ -87,12 +93,12 @@ export default function LinksTab({ group }: { group: GroupDetail }) {
   >(undefined);
   const [showFolderForm, setShowFolderForm] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(() =>
-    readCollapsed(group.id),
+    readCollapsed(trip.id),
   );
 
   useEffect(() => {
-    setCollapsed(readCollapsed(group.id));
-  }, [group.id]);
+    setCollapsed(readCollapsed(trip.id));
+  }, [trip.id]);
 
   const toggleCollapsed = useCallback(
     (id: string | null) => {
@@ -101,21 +107,24 @@ export default function LinksTab({ group }: { group: GroupDetail }) {
         const key = sectionKey(id);
         if (next.has(key)) next.delete(key);
         else next.add(key);
-        writeCollapsed(group.id, next);
+        writeCollapsed(trip.id, next);
         return next;
       });
     },
-    [group.id],
+    [trip.id],
   );
 
   const reload = useCallback(() => {
-    Promise.all([tripsApi.list(group.id), tripsApi.listFolders(group.id)])
+    Promise.all([
+      tripsApi.listLinks(group.id, trip.id),
+      tripsApi.listFolders(group.id, trip.id),
+    ])
       .then(([l, f]) => {
         setLinks(l);
         setFolders(f);
       })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : t("common.error")));
-  }, [group.id, t, toast]);
+  }, [group.id, trip.id, t, toast]);
 
   useEffect(() => {
     reload();
@@ -169,6 +178,7 @@ export default function LinksTab({ group }: { group: GroupDetail }) {
       {showFolderForm && (
         <AddFolderForm
           groupId={group.id}
+          tripId={trip.id}
           onDone={(created) => {
             setShowFolderForm(false);
             if (created) reload();
@@ -179,6 +189,7 @@ export default function LinksTab({ group }: { group: GroupDetail }) {
       {composerFolderId !== undefined && (
         <AddLinkForm
           groupId={group.id}
+          tripId={trip.id}
           folders={folders}
           existingUrls={links.map((l) => l.url)}
           initialFolderId={composerFolderId}
@@ -219,6 +230,7 @@ export default function LinksTab({ group }: { group: GroupDetail }) {
                 section={section}
                 links={inFolder}
                 groupId={group.id}
+                tripId={trip.id}
                 folders={folders}
                 collapsed={collapsed.has(key)}
                 onToggleCollapsed={() => toggleCollapsed(section.id)}
@@ -243,6 +255,7 @@ function FolderSection({
   section,
   links,
   groupId,
+  tripId,
   folders,
   collapsed,
   onToggleCollapsed,
@@ -255,6 +268,7 @@ function FolderSection({
   section: Section;
   links: TripLink[];
   groupId: string;
+  tripId: string;
   folders: TripFolder[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -291,7 +305,7 @@ function FolderSection({
     });
     if (!ok) return;
     try {
-      await tripsApi.deleteFolder(groupId, section.folder.id);
+      await tripsApi.deleteFolder(groupId, tripId, section.folder.id);
       onChanged();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t("common.error"));
@@ -304,7 +318,7 @@ function FolderSection({
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      await tripsApi.updateFolder(groupId, section.folder.id, trimmed);
+      await tripsApi.updateFolder(groupId, tripId, section.folder.id, trimmed);
       setRenaming(false);
       onChanged();
     } catch (err) {
@@ -325,6 +339,7 @@ function FolderSection({
     try {
       await tripsApi.reorderLinks(
         groupId,
+        tripId,
         section.id,
         nextOrder.map((l) => l.id),
       );
@@ -345,7 +360,7 @@ function FolderSection({
     if (moved.folder_id === section.id) return;
     // Cross-folder move: call moveLink (it also appends at the end).
     try {
-      const updated = await tripsApi.moveLink(groupId, id, section.id);
+      const updated = await tripsApi.moveLink(groupId, tripId, id, section.id);
       onReplace(updated);
       onChanged();
     } catch (err) {
@@ -364,7 +379,12 @@ function FolderSection({
       // Cross-folder move onto a specific card; just move to this folder;
       // backend places it at the end. The user can drag again to fine-tune.
       try {
-        const updated = await tripsApi.moveLink(groupId, fromId, section.id);
+        const updated = await tripsApi.moveLink(
+          groupId,
+          tripId,
+          fromId,
+          section.id,
+        );
         onReplace(updated);
         onChanged();
       } catch (err) {
@@ -503,6 +523,7 @@ function FolderSection({
                 key={link.id}
                 link={link}
                 groupId={groupId}
+                tripId={tripId}
                 folders={folders}
                 onChanged={onChanged}
                 onReplace={onReplace}
@@ -521,6 +542,7 @@ function FolderSection({
 function LinkCard({
   link,
   groupId,
+  tripId,
   folders,
   onChanged,
   onReplace,
@@ -529,6 +551,7 @@ function LinkCard({
 }: {
   link: TripLink;
   groupId: string;
+  tripId: string;
   folders: TripFolder[];
   onChanged: () => void;
   onReplace: (updated: TripLink) => void;
@@ -568,7 +591,7 @@ function LinkCard({
 
     setVotingBusy(true);
     try {
-      const updated = await tripsApi.vote(groupId, link.id, nextValue);
+      const updated = await tripsApi.voteLink(groupId, tripId, link.id, nextValue);
       onReplace(updated);
     } catch (e) {
       onReplace(link);
@@ -605,7 +628,7 @@ function LinkCard({
     if (!ok) return;
     setBusy("delete");
     try {
-      await tripsApi.remove(groupId, link.id);
+      await tripsApi.deleteLink(groupId, tripId, link.id);
       onChanged();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t("common.error"));
@@ -617,7 +640,7 @@ function LinkCard({
   async function onRefresh() {
     setBusy("refresh");
     try {
-      const updated = await tripsApi.refresh(groupId, link.id);
+      const updated = await tripsApi.refreshLink(groupId, tripId, link.id);
       onReplace(updated);
       if (!updated.title && !updated.image_url) {
         toast.info(t("trips.overview.refreshEmpty"));
@@ -635,7 +658,7 @@ function LinkCard({
     if (folderId === link.folder_id) return;
     setBusy("move");
     try {
-      const updated = await tripsApi.moveLink(groupId, link.id, folderId);
+      const updated = await tripsApi.moveLink(groupId, tripId, link.id, folderId);
       onReplace(updated);
       onChanged();
     } catch (e) {
@@ -648,7 +671,7 @@ function LinkCard({
   async function saveNote(e: FormEvent) {
     e.preventDefault();
     try {
-      await tripsApi.update(groupId, link.id, { note: note.trim() });
+      await tripsApi.updateLink(groupId, tripId, link.id, { note: note.trim() });
       setEditing(false);
       onChanged();
     } catch (err) {
@@ -756,6 +779,7 @@ function LinkCard({
         <OverrideForm
           link={link}
           groupId={groupId}
+          tripId={tripId}
           onDone={(updated) => {
             setOverrideOpen(false);
             if (updated) onReplace(updated);
@@ -897,10 +921,12 @@ function LinkCard({
 function OverrideForm({
   link,
   groupId,
+  tripId,
   onDone,
 }: {
   link: TripLink;
   groupId: string;
+  tripId: string;
   onDone: (updated: TripLink | null) => void;
 }) {
   const { t } = useTranslation();
@@ -915,7 +941,7 @@ function OverrideForm({
     try {
       // Empty string clears the override; the server treats it the same as
       // null.
-      const updated = await tripsApi.update(groupId, link.id, {
+      const updated = await tripsApi.updateLink(groupId, tripId, link.id, {
         title_override: title.trim() === "" ? null : title.trim(),
         image_override: image.trim() === "" ? null : image.trim(),
       });
@@ -1037,12 +1063,14 @@ function normalizeUrl(input: string): string {
 
 function AddLinkForm({
   groupId,
+  tripId,
   folders,
   existingUrls,
   initialFolderId,
   onDone,
 }: {
   groupId: string;
+  tripId: string;
   folders: TripFolder[];
   existingUrls: string[];
   initialFolderId: string | null;
@@ -1069,7 +1097,7 @@ function AddLinkForm({
     setError(null);
     setLoading(true);
     try {
-      await tripsApi.create(groupId, {
+      await tripsApi.createLink(groupId, tripId, {
         url: url.trim(),
         note: note.trim(),
         folder_id: folderId === "" ? null : folderId,
@@ -1190,9 +1218,11 @@ function AddLinkForm({
 
 function AddFolderForm({
   groupId,
+  tripId,
   onDone,
 }: {
   groupId: string;
+  tripId: string;
   onDone: (created: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -1207,7 +1237,7 @@ function AddFolderForm({
     setError(null);
     setLoading(true);
     try {
-      await tripsApi.createFolder(groupId, trimmed);
+      await tripsApi.createFolder(groupId, tripId, trimmed);
       onDone(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("common.error"));
