@@ -119,13 +119,13 @@ function IosInstallSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="card w-full max-w-sm space-y-4 p-5"
+        className="card my-auto max-h-full w-full max-w-sm space-y-4 overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

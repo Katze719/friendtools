@@ -3,7 +3,6 @@ import {
   ExternalLink,
   FolderOpen,
   FolderPlus,
-  GripVertical,
   ImagePlus,
   Link2,
   Pencil,
@@ -677,62 +676,56 @@ function LinkCard({
         onDropOnCard();
       }}
     >
-      <div className="flex items-start">
-        <GripVertical
-          className="mt-2 ml-1 h-4 w-4 shrink-0 cursor-grab text-slate-300 dark:text-slate-600"
-          aria-hidden
-        />
-        <a
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block min-w-0 flex-1"
-        >
-          {effectiveImage ? (
-            <div className="aspect-[16/9] overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <a
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block"
+      >
+        {effectiveImage ? (
+          <div className="aspect-[16/9] overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img
+              src={effectiveImage}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        ) : null}
+
+        <div className="p-4">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            {favicon && (
               <img
-                src={effectiveImage}
+                src={favicon}
                 alt=""
-                loading="lazy"
-                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5 rounded-sm"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
                 }}
               />
-            </div>
-          ) : null}
-
-          <div className="p-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              {favicon && (
-                <img
-                  src={favicon}
-                  alt=""
-                  width={14}
-                  height={14}
-                  className="h-3.5 w-3.5 rounded-sm"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              )}
-              <span className="truncate">{link.site_name ?? host}</span>
-            </div>
-            <h3 className="mt-1 line-clamp-2 text-base font-semibold">
-              {effectiveTitle ?? link.url}
-            </h3>
-            {link.description && (
-              <p className="mt-1 line-clamp-3 text-sm text-slate-600 dark:text-slate-300">
-                {link.description}
-              </p>
             )}
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 group-hover:underline dark:text-brand-400">
-              <ExternalLink className="h-3 w-3" />
-              <span className="truncate">{link.url}</span>
-            </p>
+            <span className="truncate">{link.site_name ?? host}</span>
           </div>
-        </a>
-      </div>
+          <h3 className="mt-1 line-clamp-2 text-base font-semibold">
+            {effectiveTitle ?? link.url}
+          </h3>
+          {link.description && (
+            <p className="mt-1 line-clamp-3 text-sm text-slate-600 dark:text-slate-300">
+              {link.description}
+            </p>
+          )}
+          <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 group-hover:underline dark:text-brand-400">
+            <ExternalLink className="h-3 w-3" />
+            <span className="truncate">{link.url}</span>
+          </p>
+        </div>
+      </a>
 
       {missingMetadata && (
         <div className="mx-3 mb-1 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
