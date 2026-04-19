@@ -21,7 +21,9 @@ export interface RegisterResponse {
 export interface GroupSummary {
   id: string;
   name: string;
-  invite_code: string;
+  /** `null` means invites are closed - nobody can join. Owners can open
+   *  the group (which generates a fresh code) or close it again. */
+  invite_code: string | null;
   currency: string;
   created_at: string;
   member_count: number;
@@ -39,7 +41,8 @@ export interface Member {
 export interface GroupDetail {
   id: string;
   name: string;
-  invite_code: string;
+  /** `null` means invites are closed - see {@link GroupSummary.invite_code}. */
+  invite_code: string | null;
   currency: string;
   created_by: string;
   created_at: string;

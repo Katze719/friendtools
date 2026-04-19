@@ -154,9 +154,15 @@ function GroupCard({ group }: { group: GroupSummary }) {
       </div>
       <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
         {t("dashboard.inviteCode")}:{" "}
-        <span className="font-mono tracking-wider text-slate-600 dark:text-slate-300">
-          {group.invite_code}
-        </span>
+        {group.invite_code ? (
+          <span className="font-mono tracking-wider text-slate-600 dark:text-slate-300">
+            {group.invite_code}
+          </span>
+        ) : (
+          <span className="italic text-slate-500 dark:text-slate-400">
+            {t("dashboard.inviteClosed")}
+          </span>
+        )}
       </p>
     </Link>
   );

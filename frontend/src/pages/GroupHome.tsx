@@ -3,10 +3,13 @@ import {
   ArrowRight,
   Copy,
   Link2,
+  Lock,
   LogOut,
+  RefreshCw,
   Share2,
   Star,
   Trash2,
+  Unlock,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -43,7 +46,7 @@ export default function GroupHome() {
   }, [isFavorite]);
 
   const inviteUrl = useMemo(() => {
-    if (!group) return "";
+    if (!group?.invite_code) return "";
     return `${window.location.origin}/i/${group.invite_code}`;
   }, [group]);
 
@@ -61,7 +64,7 @@ export default function GroupHome() {
 
   async function onCopy(what: "code" | "link") {
     try {
-      if (!group) return;
+      if (!group?.invite_code) return;
       const text = what === "code" ? group.invite_code : inviteUrl;
       await navigator.clipboard.writeText(text);
       setCopied(what);
@@ -72,7 +75,7 @@ export default function GroupHome() {
   }
 
   async function onShare() {
-    if (!group) return;
+    if (!group?.invite_code) return;
     const shareData = {
       title: group.name,
       text: t("group.shareText", { name: group.name }),
@@ -86,6 +89,54 @@ export default function GroupHome() {
       }
     } catch {
       /* user cancelled or share failed */
+    }
+  }
+
+  async function onOpenInvites() {
+    if (!group) return;
+    try {
+      await groupsApi.openInvites(group.id);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
+    }
+  }
+
+  async function onRegenerateInvite() {
+    if (!group) return;
+    const ok = await confirm({
+      title: t("group.regenerateTitle"),
+      message: t("group.regenerateConfirm"),
+      confirmLabel: t("group.regenerate"),
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await groupsApi.openInvites(group.id);
+      setShowQr(false);
+      setCopied(null);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
+    }
+  }
+
+  async function onCloseInvites() {
+    if (!group) return;
+    const ok = await confirm({
+      title: t("group.closeInvitesTitle"),
+      message: t("group.closeInvitesConfirm", { name: group.name }),
+      confirmLabel: t("group.closeInvites"),
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await groupsApi.closeInvites(group.id);
+      setShowQr(false);
+      setCopied(null);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t("common.error"));
     }
   }
 
@@ -246,78 +297,132 @@ export default function GroupHome() {
         </div>
 
         <div className="card space-y-4 p-5">
-          <div>
-            <p className="label">{t("group.inviteCode")}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm tracking-widest">
-                {group.invite_code}
-              </span>
-              <button
-                className="btn-ghost -my-1"
-                onClick={() => onCopy("code")}
-                aria-label={t("group.copyCode")}
-              >
-                <Copy className="h-4 w-4" />
-                <span className="text-xs">
-                  {copied === "code" ? t("common.copied") : t("common.copy")}
+          {group.invite_code ? (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="label">{t("group.inviteCode")}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm tracking-widest">
+                      {group.invite_code}
+                    </span>
+                    <button
+                      className="btn-ghost -my-1"
+                      onClick={() => onCopy("code")}
+                      aria-label={t("group.copyCode")}
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span className="text-xs">
+                        {copied === "code"
+                          ? t("common.copied")
+                          : t("common.copy")}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  <Unlock className="h-3 w-3" /> {t("group.invitesOpen")}
                 </span>
-              </button>
-            </div>
-          </div>
+              </div>
 
-          <div>
-            <p className="label">{t("group.inviteLink")}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <input
-                readOnly
-                value={inviteUrl}
-                onFocus={(e) => e.currentTarget.select()}
-                className="input min-w-0 flex-1 truncate font-mono text-xs"
-                aria-label={t("group.inviteLink")}
-              />
-              <button
-                className="btn-ghost -my-1 shrink-0"
-                onClick={() => onCopy("link")}
-                aria-label={t("group.copyLink")}
-                title={t("group.copyLink")}
-              >
-                <Link2 className="h-4 w-4" />
-                <span className="hidden text-xs sm:inline">
-                  {copied === "link" ? t("common.copied") : t("common.copy")}
-                </span>
-              </button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn-secondary" onClick={onShare}>
-                <Share2 className="h-4 w-4" /> {t("group.share")}
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowQr((v) => !v)}
-                aria-expanded={showQr}
-              >
-                {showQr ? t("group.hideQr") : t("group.showQr")}
-              </button>
-            </div>
-            {showQr && (
-              <div className="mt-3 flex flex-col items-center gap-2 rounded-xl bg-white p-4 dark:bg-slate-100">
-                <QRCodeSVG
-                  value={inviteUrl}
-                  size={192}
-                  level="M"
-                  marginSize={2}
-                  bgColor="#ffffff"
-                  fgColor="#0f172a"
-                />
-                <p className="text-center text-xs text-slate-600">
-                  {t("group.qrHint")}
+              <div>
+                <p className="label">{t("group.inviteLink")}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={inviteUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="input min-w-0 flex-1 truncate font-mono text-xs"
+                    aria-label={t("group.inviteLink")}
+                  />
+                  <button
+                    className="btn-ghost -my-1 shrink-0"
+                    onClick={() => onCopy("link")}
+                    aria-label={t("group.copyLink")}
+                    title={t("group.copyLink")}
+                  >
+                    <Link2 className="h-4 w-4" />
+                    <span className="hidden text-xs sm:inline">
+                      {copied === "link"
+                        ? t("common.copied")
+                        : t("common.copy")}
+                    </span>
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button className="btn-secondary" onClick={onShare}>
+                    <Share2 className="h-4 w-4" /> {t("group.share")}
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setShowQr((v) => !v)}
+                    aria-expanded={showQr}
+                  >
+                    {showQr ? t("group.hideQr") : t("group.showQr")}
+                  </button>
+                </div>
+                {showQr && (
+                  <div className="mt-3 flex flex-col items-center gap-2 rounded-xl bg-white p-4 dark:bg-slate-100">
+                    <QRCodeSVG
+                      value={inviteUrl}
+                      size={192}
+                      level="M"
+                      marginSize={2}
+                      bgColor="#ffffff"
+                      fgColor="#0f172a"
+                    />
+                    <p className="text-center text-xs text-slate-600">
+                      {t("group.qrHint")}
+                    </p>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t("group.inviteHint")}
                 </p>
               </div>
-            )}
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {t("group.inviteHint")}
-            </p>
-          </div>
+
+              {isOwner && (
+                <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <button className="btn-secondary" onClick={onRegenerateInvite}>
+                    <RefreshCw className="h-4 w-4" /> {t("group.regenerate")}
+                  </button>
+                  <button
+                    className="btn-ghost text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                    onClick={onCloseInvites}
+                  >
+                    <Lock className="h-4 w-4" /> {t("group.closeInvites")}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="label">{t("group.inviteCode")}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {t("group.invitesClosed")}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <Lock className="h-3 w-3" /> {t("group.invitesClosedBadge")}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {isOwner
+                  ? t("group.invitesClosedOwnerHint")
+                  : t("group.invitesClosedMemberHint")}
+              </p>
+              {isOwner && (
+                <button
+                  className="btn-primary mt-3"
+                  onClick={onOpenInvites}
+                >
+                  <Unlock className="h-4 w-4" /> {t("group.openInvites")}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2">

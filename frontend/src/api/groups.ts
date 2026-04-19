@@ -21,4 +21,12 @@ export const groupsApi = {
       `/api/groups/${id}/leave`,
       { method: "POST" },
     ),
+  openInvites: (id: string) =>
+    api<{ invite_code: string }>(`/api/groups/${id}/invite/open`, {
+      method: "POST",
+    }),
+  closeInvites: (id: string) =>
+    api<{ ok: boolean }>(`/api/groups/${id}/invite/close`, {
+      method: "POST",
+    }),
 };

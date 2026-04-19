@@ -333,6 +333,7 @@ const de: Translations = {
     memberCount_one: "{{count}} Mitglied",
     memberCount_other: "{{count}} Mitglieder",
     inviteCode: "Einladungscode",
+    inviteClosed: "geschlossen",
     roleOwner: "Owner",
     empty: {
       title: "Noch keine Gruppen",
@@ -372,6 +373,22 @@ const de: Translations = {
     shareText: "Tritt meiner Gruppe \"{{name}}\" auf friendflow bei",
     inviteHint:
       "Teile Code, Link oder QR-Code mit allen, die der Gruppe beitreten sollen.",
+    invitesOpen: "Offen",
+    invitesClosed: "Einladungen sind geschlossen.",
+    invitesClosedBadge: "Geschlossen",
+    invitesClosedOwnerHint:
+      "Aktuell kann niemand beitreten. Öffne die Einladungen, um einen neuen Code zu generieren, den du teilen kannst.",
+    invitesClosedMemberHint:
+      "Nur Owner können Einladungen öffnen. Frag die Owner, einen neuen Code zu generieren.",
+    openInvites: "Einladungen öffnen",
+    closeInvites: "Einladungen schließen",
+    closeInvitesTitle: "Einladungen schließen?",
+    closeInvitesConfirm:
+      'Einladungen für "{{name}}" schließen? Der aktuelle Code und Link funktionieren sofort nicht mehr. Du kannst jederzeit wieder öffnen (es wird ein neuer Code generiert).',
+    regenerate: "Neuer Code",
+    regenerateTitle: "Neuen Code generieren?",
+    regenerateConfirm:
+      "Der aktuelle Code und Link funktionieren sofort nicht mehr. Ein neuer Code wird erzeugt.",
     delete: "Gruppe löschen",
     deleteHint: "Löscht die Gruppe und alle Tool-Daten unwiderruflich.",
     deleteTitle: "Gruppe löschen?",

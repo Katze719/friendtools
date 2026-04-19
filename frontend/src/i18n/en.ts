@@ -331,6 +331,7 @@ const en = {
     memberCount_one: "{{count}} member",
     memberCount_other: "{{count}} members",
     inviteCode: "Invite code",
+    inviteClosed: "closed",
     roleOwner: "Owner",
     empty: {
       title: "No groups yet",
@@ -370,6 +371,22 @@ const en = {
     shareText: "Join my group \"{{name}}\" on friendflow",
     inviteHint:
       "Share the code, link or QR with anyone you want to add to this group.",
+    invitesOpen: "Open",
+    invitesClosed: "Invites are closed.",
+    invitesClosedBadge: "Closed",
+    invitesClosedOwnerHint:
+      "Nobody can join right now. Open invites to generate a fresh code you can share.",
+    invitesClosedMemberHint:
+      "Only the group owner can open invites. Ask them to generate a new code.",
+    openInvites: "Open invites",
+    closeInvites: "Close invites",
+    closeInvitesTitle: "Close invites?",
+    closeInvitesConfirm:
+      'Close invites for "{{name}}"? The current code and link stop working immediately. You can reopen any time (a new code will be generated).',
+    regenerate: "New code",
+    regenerateTitle: "Generate a new code?",
+    regenerateConfirm:
+      "The current code and link will stop working immediately. A new one is generated right away.",
     delete: "Delete group",
     deleteHint: "Permanently deletes the group and all its tool data.",
     deleteTitle: "Delete group?",
