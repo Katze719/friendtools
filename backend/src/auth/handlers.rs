@@ -55,6 +55,25 @@ pub struct LoginResponse {
     pub user: UserResponse,
 }
 
+/// Public instance metadata returned to unauthenticated clients so the
+/// login and register screens can show whether this instance gates
+/// sign-ups behind an admin. Intentionally tiny - only ship information
+/// that's useful for the UI, nothing that could leak operational
+/// details.
+#[derive(Debug, Serialize)]
+pub struct AuthConfigResponse {
+    pub registration_mode: &'static str,
+}
+
+pub async fn config(State(state): State<AppState>) -> Json<AuthConfigResponse> {
+    Json(AuthConfigResponse {
+        registration_mode: match state.cfg.registration_mode {
+            RegistrationMode::Approval => "approval",
+            RegistrationMode::Open => "open",
+        },
+    })
+}
+
 pub async fn register(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,

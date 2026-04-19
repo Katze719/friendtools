@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import InstallAppButton from "../components/InstallAppButton";
+import InstanceBadge from "../components/InstanceBadge";
 import { useAuth } from "../context/AuthContext";
 
 export default function Register() {
@@ -50,6 +51,9 @@ export default function Register() {
         />
         <span className="text-xl font-semibold tracking-tight">friendflow</span>
       </Link>
+      <div className="mb-4 flex justify-center">
+        <InstanceBadge />
+      </div>
       <div className="card p-6 sm:p-8">
         <h1 className="text-2xl font-semibold tracking-tight">{t("auth.register.title")}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("auth.register.subtitle")}</p>

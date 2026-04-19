@@ -15,4 +15,5 @@ pub fn routes() -> Router<AppState> {
         .route("/register", post(handlers::register))
         .route("/login", post(handlers::login))
         .route("/me", get(handlers::me))
+        .route("/config", get(handlers::config))
 }

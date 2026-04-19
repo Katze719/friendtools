@@ -41,6 +41,16 @@ const en = {
     title: "Not found",
     subtitle: "This page does not exist.",
   },
+  instance: {
+    public: {
+      label: "Public instance",
+      hint: "anyone can sign up",
+    },
+    private: {
+      label: "Private instance",
+      hint: "admin approval required",
+    },
+  },
   landing: {
     nav: {
       signIn: "Sign in",

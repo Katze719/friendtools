@@ -43,6 +43,16 @@ const de: Translations = {
     title: "Nicht gefunden",
     subtitle: "Diese Seite gibt es nicht.",
   },
+  instance: {
+    public: {
+      label: "Öffentliche Instanz",
+      hint: "jeder kann sich registrieren",
+    },
+    private: {
+      label: "Private Instanz",
+      hint: "Admin-Freigabe nötig",
+    },
+  },
   landing: {
     nav: {
       signIn: "Anmelden",
