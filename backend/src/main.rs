@@ -26,6 +26,7 @@ mod groups;
 mod shopping;
 mod splitwise;
 mod state;
+mod tasks;
 mod trips;
 
 use state::AppState;

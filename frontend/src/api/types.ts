@@ -232,6 +232,28 @@ export interface ShoppingItem {
   created_at: string;
 }
 
+export type TaskPriority = "low" | "normal" | "high";
+
+export interface Task {
+  id: string;
+  group_id: string;
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  /** ISO date (YYYY-MM-DD) or null when unscheduled. */
+  due_date: string | null;
+  is_done: boolean;
+  done_at: string | null;
+  done_by: string | null;
+  done_by_display_name: string | null;
+  assigned_to: string | null;
+  assigned_to_display_name: string | null;
+  created_by: string;
+  created_by_display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;

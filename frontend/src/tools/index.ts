@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import {
   CalendarDays,
+  ClipboardList,
   Plane,
   ShoppingBasket,
   Wallet,
@@ -10,6 +11,7 @@ import CalendarOverviewPage from "./calendar/OverviewPage";
 import ShoppingOverviewPage from "./shopping/OverviewPage";
 import SplitwiseOverviewPage from "./splitwise/OverviewPage";
 import SplitwiseNewExpensePage from "./splitwise/NewExpensePage";
+import TasksOverviewPage from "./tasks/OverviewPage";
 import TripDetailPage from "./trips/TripDetailPage";
 import TripsListPage from "./trips/TripsListPage";
 
@@ -77,6 +79,15 @@ export const tools: Tool[] = [
     icon: ShoppingBasket,
     accent: "bg-amber-500",
     routes: [{ path: "/", component: ShoppingOverviewPage }],
+  },
+  {
+    id: "tasks",
+    nameKey: "tools.tasks.name",
+    descriptionKey: "tools.tasks.description",
+    basePath: "tasks",
+    icon: ClipboardList,
+    accent: "bg-rose-500",
+    routes: [{ path: "/", component: TasksOverviewPage }],
   },
 ];
 
