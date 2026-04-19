@@ -2,10 +2,12 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  Clock,
   Github,
   Globe,
   Lock,
   type LucideIcon,
+  MapPin,
   Plane,
   Server,
   Share2,
@@ -44,6 +46,7 @@ export default function Landing() {
         <Hero />
         <TrustBar />
         <Features />
+        <Tour />
         <HowItWorks />
         <Values />
         <Faq />
@@ -525,6 +528,694 @@ function FinalCta() {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Stitched-together visual tour. Each row pairs a short pitch with a
+ * faux app window so visitors can scan the product in pictures, no login
+ * required. Every mock is pure markup + Tailwind - no bitmap assets.
+ */
+function Tour() {
+  const { t } = useTranslation();
+  const items: { id: string; eyebrowKey: string; mock: JSX.Element }[] = [
+    { id: "splitwise", eyebrowKey: "splitwise", mock: <MockSplitwise /> },
+    { id: "trips", eyebrowKey: "trips", mock: <MockTrip /> },
+    { id: "calendar", eyebrowKey: "calendar", mock: <MockCalendar /> },
+    { id: "shopping", eyebrowKey: "shopping", mock: <MockShopping /> },
+    { id: "tasks", eyebrowKey: "tasks", mock: <MockTasks /> },
+  ];
+  return (
+    <section className="mx-auto max-w-6xl px-safe py-16 sm:py-20">
+      <SectionHeading
+        eyebrow={t("landing.tour.eyebrow")}
+        title={t("landing.tour.title")}
+        subtitle={t("landing.tour.subtitle")}
+        centered
+      />
+      <div className="mt-14 space-y-16 sm:space-y-24">
+        {items.map((item, idx) => (
+          <TourRow
+            key={item.id}
+            idx={idx}
+            id={item.id}
+            mock={item.mock}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TourRow({
+  idx,
+  id,
+  mock,
+}: {
+  idx: number;
+  id: string;
+  mock: JSX.Element;
+}) {
+  const { t } = useTranslation();
+  const reversed = idx % 2 === 1;
+  return (
+    <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
+      <div className={reversed ? "lg:order-2" : ""}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+          {t(`landing.tour.${id}.eyebrow`)}
+        </p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          {t(`landing.features.${id}.title`)}
+        </h3>
+        <p className="mt-3 text-base text-slate-600 dark:text-slate-300">
+          {t(`landing.tour.${id}.body`)}
+        </p>
+        <ul className="mt-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          {(["b1", "b2", "b3"] as const).map((k) => (
+            <li key={k} className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              <span>{t(`landing.tour.${id}.${k}`)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={reversed ? "lg:order-1" : ""}>{mock}</div>
+    </div>
+  );
+}
+
+/**
+ * Chrome-less browser-window wrapper shared by every tour mockup. The
+ * soft blurred gradient behind the frame is what makes the screenshots
+ * pop against the background without us having to ship an actual image.
+ */
+function MockFrame({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <div
+        aria-hidden="true"
+        className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-br from-brand-400/20 via-sky-400/15 to-fuchsia-400/15 blur-2xl dark:from-brand-500/15 dark:via-sky-500/10 dark:to-fuchsia-500/10"
+      />
+      <div className="card overflow-hidden p-0 shadow-xl ring-slate-200/50 dark:ring-slate-700/40">
+        <div className="flex items-center gap-1.5 border-b border-slate-200/70 bg-slate-50 px-4 py-2.5 dark:border-slate-800/70 dark:bg-slate-900/80">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          <span className="ml-3 truncate text-xs text-slate-500 dark:text-slate-400">
+            {title}
+          </span>
+        </div>
+        <div className="space-y-3 p-4 sm:p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function MockSplitwise() {
+  const { t } = useTranslation();
+  const youLabel = t("landing.tour.you");
+
+  // Four members spaced evenly around a circle - the same layout the live
+  // CashflowGraph uses, just at a smaller scale. Positions computed once.
+  const W = 320;
+  const H = 220;
+  const cx = W / 2;
+  const cy = H / 2;
+  const r = 74;
+  const nodeR = 22;
+
+  type NodeDef = {
+    id: string;
+    name: string;
+    initials: string;
+    balance: number;
+    me?: boolean;
+  };
+  const nodes: NodeDef[] = [
+    { id: "anna", name: "Anna", initials: "A", balance: 1840 },
+    { id: "ben", name: "Ben", initials: "B", balance: -1250 },
+    { id: "you", name: youLabel, initials: "Y", balance: 4230, me: true },
+    { id: "tom", name: "Tom", initials: "T", balance: -4820 },
+  ];
+  const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  const pos = new Map<string, { x: number; y: number }>();
+  nodes.forEach((n, i) => {
+    pos.set(n.id, {
+      x: cx + r * Math.cos(angles[i]),
+      y: cy + r * Math.sin(angles[i]),
+    });
+  });
+
+  const edges: { from: string; to: string; amount: string }[] = [
+    { from: "tom", to: "you", amount: "42,30 €" },
+    { from: "ben", to: "anna", amount: "12,50 €" },
+  ];
+
+  return (
+    <MockFrame title="friendflow / wg-finanzen">
+      <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-sky-50 p-3 dark:from-emerald-950/40 dark:to-sky-950/30">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+          {t("landing.tour.splitwise.balanceLabel")}
+        </p>
+        <div className="mt-0.5 flex items-baseline justify-between gap-2">
+          <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-200">
+            +42,30 €
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {t("splitwise.overview.positive")}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative rounded-xl border border-slate-200/70 bg-white/70 p-2 dark:border-slate-800/70 dark:bg-slate-900/60">
+        <div className="mb-1 flex items-center justify-between px-1">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            {t("landing.tour.splitwise.graphLabel")}
+          </span>
+          <span className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-[10px] dark:border-slate-700 dark:bg-slate-800">
+            <span className="rounded bg-brand-600 px-1.5 py-0.5 text-white">
+              {t("landing.tour.splitwise.modeSimplified")}
+            </span>
+            <span className="px-1.5 py-0.5 text-slate-500 dark:text-slate-400">
+              {t("landing.tour.splitwise.modeDirect")}
+            </span>
+          </span>
+        </div>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-auto w-full"
+          role="img"
+          aria-label={t("splitwise.overview.graph.aria")}
+        >
+          <defs>
+            <marker
+              id="tour-cashflow-arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path
+                d="M0,0 L10,5 L0,10 z"
+                className="fill-slate-500 dark:fill-slate-300"
+              />
+            </marker>
+          </defs>
+
+          {edges.map((e, i) => {
+            const from = pos.get(e.from)!;
+            const to = pos.get(e.to)!;
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const ux = dx / len;
+            const uy = dy / len;
+            const x1 = from.x + ux * nodeR;
+            const y1 = from.y + uy * nodeR;
+            const x2 = to.x - ux * nodeR;
+            const y2 = to.y - uy * nodeR;
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const nx = -uy;
+            const ny = ux;
+            const bulge = 22;
+            const ctrlX = midX + nx * bulge;
+            const ctrlY = midY + ny * bulge;
+            const labelX = midX + nx * (bulge + 2);
+            const labelY = midY + ny * (bulge + 2);
+            const touchesMe = e.from === "you" || e.to === "you";
+            return (
+              <g key={i}>
+                <path
+                  d={`M ${x1},${y1} Q ${ctrlX},${ctrlY} ${x2},${y2}`}
+                  fill="none"
+                  className={
+                    touchesMe
+                      ? "stroke-brand-500 dark:stroke-brand-400"
+                      : "stroke-slate-400 dark:stroke-slate-500"
+                  }
+                  strokeWidth={touchesMe ? 2 : 1.4}
+                  markerEnd="url(#tour-cashflow-arrow)"
+                />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-slate-700 stroke-white text-[10px] font-medium tabular-nums dark:fill-slate-100 dark:stroke-slate-900"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  style={{ paintOrder: "stroke" }}
+                >
+                  {e.amount}
+                </text>
+              </g>
+            );
+          })}
+
+          {nodes.map((n) => {
+            const p = pos.get(n.id)!;
+            const positive = n.balance > 0;
+            const fillClass = positive
+              ? "fill-emerald-100 dark:fill-emerald-900/60"
+              : n.balance < 0
+                ? "fill-rose-100 dark:fill-rose-900/60"
+                : "fill-slate-100 dark:fill-slate-800";
+            const strokeClass = n.me
+              ? "stroke-brand-500 dark:stroke-brand-400"
+              : positive
+                ? "stroke-emerald-500 dark:stroke-emerald-400"
+                : "stroke-rose-500 dark:stroke-rose-400";
+            const dirX = (p.x - cx) / (Math.hypot(p.x - cx, p.y - cy) || 1);
+            const dirY = (p.y - cy) / (Math.hypot(p.x - cx, p.y - cy) || 1);
+            const nameX = p.x + dirX * (nodeR + 14);
+            const nameY = p.y + dirY * (nodeR + 14);
+            return (
+              <g key={n.id}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={nodeR}
+                  className={`${fillClass} ${strokeClass}`}
+                  strokeWidth={n.me ? 2.2 : 1.6}
+                />
+                <text
+                  x={p.x}
+                  y={p.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="fill-slate-700 text-[11px] font-semibold dark:fill-slate-100"
+                >
+                  {n.initials}
+                </text>
+                <text
+                  x={nameX}
+                  y={nameY}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="fill-slate-700 text-[10px] dark:fill-slate-200"
+                >
+                  {n.name}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </MockFrame>
+  );
+}
+
+function MockTrip() {
+  const { t } = useTranslation();
+  const days: { day: string; items: { time: string; title: string }[] }[] = [
+    {
+      day: t("landing.tour.trips.day1"),
+      items: [
+        { time: "16:40", title: t("landing.tour.trips.item1") },
+        { time: "18:00", title: t("landing.tour.trips.item2") },
+      ],
+    },
+    {
+      day: t("landing.tour.trips.day2"),
+      items: [
+        { time: "10:00", title: t("landing.tour.trips.item3") },
+        { time: "20:00", title: t("landing.tour.trips.item4") },
+      ],
+    },
+  ];
+
+  return (
+    <MockFrame title="friendflow / lisbon-crew">
+      <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 p-3 dark:from-sky-950/40 dark:to-indigo-950/30">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white">
+          <Plane className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">
+            {t("landing.mock.trip.title")}
+          </p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <MapPin className="mr-1 inline h-3 w-3" />
+            Lisboa · Jun 7 - Jun 10
+          </p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {days.map((d) => (
+          <div key={d.day}>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {d.day}
+            </p>
+            <ul className="space-y-1">
+              {d.items.map((it) => (
+                <li
+                  key={it.title}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2 text-xs text-slate-700 dark:border-slate-800/70 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <Clock className="h-3 w-3 shrink-0 text-slate-400" />
+                  <span className="w-10 shrink-0 tabular-nums text-slate-500 dark:text-slate-400">
+                    {it.time}
+                  </span>
+                  <span className="truncate font-medium">{it.title}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/70 p-3 dark:border-slate-800/70 dark:bg-slate-900/60">
+        <div className="flex items-baseline justify-between text-xs">
+          <span className="font-medium text-slate-600 dark:text-slate-300">
+            {t("landing.tour.trips.budgetLabel")}
+          </span>
+          <span className="tabular-nums text-slate-500 dark:text-slate-400">
+            820 / 1.000 €
+          </span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+          <div
+            className="h-full bg-sky-500"
+            style={{ width: "82%" }}
+          />
+        </div>
+      </div>
+    </MockFrame>
+  );
+}
+
+function MockCalendar() {
+  const { t } = useTranslation();
+  const dayLabels = [
+    t("landing.tour.calendar.d1"),
+    t("landing.tour.calendar.d2"),
+    t("landing.tour.calendar.d3"),
+    t("landing.tour.calendar.d4"),
+    t("landing.tour.calendar.d5"),
+    t("landing.tour.calendar.d6"),
+    t("landing.tour.calendar.d7"),
+  ];
+  // Start the mock month on a Wednesday so the layout feels real without
+  // depending on the current date; mark a handful of days with event dots.
+  const days = Array.from({ length: 35 }, (_, i) => i - 2);
+  const eventDays = new Set([5, 12, 14, 20, 27]);
+  const highlight = 20;
+
+  return (
+    <MockFrame title="friendflow / calendar">
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-semibold">
+          {t("landing.tour.calendar.month")}
+        </p>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          {t("landing.tour.calendar.hint")}
+        </span>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        {dayLabels.map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((n) => {
+          if (n < 1 || n > 30) {
+            return <span key={`empty-${n}`} className="h-8" />;
+          }
+          const hasEvent = eventDays.has(n);
+          const isHighlight = n === highlight;
+          return (
+            <div
+              key={n}
+              className={`relative flex h-8 flex-col items-center justify-center rounded-md text-xs ${
+                isHighlight
+                  ? "bg-brand-600 font-semibold text-white"
+                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+              }`}
+            >
+              {n}
+              {hasEvent && !isHighlight && (
+                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-violet-500" />
+              )}
+              {isHighlight && (
+                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-white/80" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="space-y-2">
+        <CalendarEventRow
+          color="bg-violet-500"
+          day={t("landing.tour.calendar.eventDay")}
+          title={t("landing.tour.calendar.eventTitle")}
+          time="19:00"
+        />
+        <CalendarEventRow
+          color="bg-sky-500"
+          day={t("landing.tour.calendar.eventDay2")}
+          title={t("landing.tour.calendar.eventTitle2")}
+          time="10:30"
+          fromTrip
+        />
+      </div>
+    </MockFrame>
+  );
+}
+
+function CalendarEventRow({
+  color,
+  day,
+  title,
+  time,
+  fromTrip,
+}: {
+  color: string;
+  day: string;
+  title: string;
+  time: string;
+  fromTrip?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2 text-xs dark:border-slate-800/70 dark:bg-slate-900/60">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-slate-800 dark:text-slate-100">
+          {title}
+        </p>
+        <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+          {day} · {time}
+          {fromTrip && (
+            <span className="ml-1 rounded-sm bg-sky-50 px-1 text-[10px] font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
+              {t("landing.tour.calendar.fromTrip")}
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MockShopping() {
+  const { t } = useTranslation();
+  const items: { name: string; qty: string; done: boolean; by?: string }[] = [
+    { name: t("landing.tour.shopping.i1"), qty: "1 l", done: true, by: "Anna" },
+    { name: t("landing.tour.shopping.i2"), qty: "", done: true, by: "Tom" },
+    { name: t("landing.tour.shopping.i3"), qty: "500 g", done: false },
+    { name: t("landing.tour.shopping.i4"), qty: "2 kg", done: false },
+    { name: t("landing.tour.shopping.i5"), qty: "3×", done: false },
+  ];
+  return (
+    <MockFrame title="friendflow / einkauf">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>{t("landing.tour.shopping.openCount", { count: 3 })}</span>
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          {t("landing.tour.shopping.live")}
+        </span>
+      </div>
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/70 dark:divide-slate-800 dark:border-slate-800/70">
+        {items.map((it) => (
+          <li
+            key={it.name}
+            className="flex items-center gap-3 bg-white/80 px-3 py-2 text-xs dark:bg-slate-900/60"
+          >
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
+                it.done
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-slate-300 text-transparent dark:border-slate-600"
+              }`}
+            >
+              <Check className="h-3 w-3" />
+            </span>
+            <span
+              className={`flex-1 truncate ${
+                it.done
+                  ? "text-slate-400 line-through dark:text-slate-500"
+                  : "font-medium text-slate-800 dark:text-slate-100"
+              }`}
+            >
+              {it.name}
+            </span>
+            {it.qty && (
+              <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">
+                {it.qty}
+              </span>
+            )}
+            {it.by ? (
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                {it.by}
+              </span>
+            ) : (
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {t("landing.tour.shopping.open")}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </MockFrame>
+  );
+}
+
+function MockTasks() {
+  const { t } = useTranslation();
+  type Priority = "high" | "normal" | "low";
+  type Due = "today" | "tomorrow" | "week" | "done";
+  const tasks: {
+    title: string;
+    assignee: string;
+    priority: Priority;
+    due: Due;
+    done: boolean;
+  }[] = [
+    {
+      title: t("landing.tour.tasks.t1"),
+      assignee: "Anna",
+      priority: "high",
+      due: "today",
+      done: false,
+    },
+    {
+      title: t("landing.tour.tasks.t2"),
+      assignee: "Ben",
+      priority: "normal",
+      due: "tomorrow",
+      done: false,
+    },
+    {
+      title: t("landing.tour.tasks.t3"),
+      assignee: t("landing.tour.you"),
+      priority: "low",
+      due: "week",
+      done: false,
+    },
+    {
+      title: t("landing.tour.tasks.t4"),
+      assignee: "Tom",
+      priority: "normal",
+      due: "done",
+      done: true,
+    },
+  ];
+  return (
+    <MockFrame title="friendflow / wg-aufgaben">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/70 dark:divide-slate-800 dark:border-slate-800/70">
+        {tasks.map((tk) => (
+          <li
+            key={tk.title}
+            className="flex items-start gap-3 bg-white/80 px-3 py-2.5 text-xs dark:bg-slate-900/60"
+          >
+            <span
+              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
+                tk.done
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-slate-300 text-transparent dark:border-slate-600"
+              }`}
+            >
+              <Check className="h-3 w-3" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span
+                  className={`font-medium ${
+                    tk.done
+                      ? "text-slate-400 line-through dark:text-slate-500"
+                      : "text-slate-800 dark:text-slate-100"
+                  }`}
+                >
+                  {tk.title}
+                </span>
+                {!tk.done && tk.priority === "high" && (
+                  <TaskChip tone="rose">
+                    {t("landing.tour.tasks.priHigh")}
+                  </TaskChip>
+                )}
+                {!tk.done && tk.priority === "low" && (
+                  <TaskChip tone="slate">
+                    {t("landing.tour.tasks.priLow")}
+                  </TaskChip>
+                )}
+                {!tk.done && tk.due === "today" && (
+                  <TaskChip tone="amber">
+                    {t("landing.tour.tasks.dueToday")}
+                  </TaskChip>
+                )}
+                {!tk.done && tk.due === "tomorrow" && (
+                  <TaskChip tone="amber">
+                    {t("landing.tour.tasks.dueTomorrow")}
+                  </TaskChip>
+                )}
+                {!tk.done && tk.due === "week" && (
+                  <TaskChip tone="sky">
+                    {t("landing.tour.tasks.dueWeek")}
+                  </TaskChip>
+                )}
+              </div>
+              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                {tk.done
+                  ? t("landing.tour.tasks.doneBy", { name: tk.assignee })
+                  : t("landing.tour.tasks.assigned", { name: tk.assignee })}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </MockFrame>
+  );
+}
+
+type ChipTone = "rose" | "amber" | "sky" | "slate";
+
+function TaskChip({
+  tone,
+  children,
+}: {
+  tone: ChipTone;
+  children: React.ReactNode;
+}) {
+  const styles: Record<ChipTone, string> = {
+    rose: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    amber:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    sky: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+    slate:
+      "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  };
+  return (
+    <span
+      className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${styles[tone]}`}
+    >
+      {children}
+    </span>
   );
 }
 
