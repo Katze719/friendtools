@@ -14,7 +14,8 @@
   <img alt="Postgres" src="https://img.shields.io/badge/db-PostgreSQL%2016-336791?logo=postgresql&logoColor=white">
   <img alt="Docker Compose" src="https://img.shields.io/badge/deploy-Docker%20Compose-2496ED?logo=docker&logoColor=white">
   <img alt="i18n" src="https://img.shields.io/badge/i18n-EN%20%7C%20DE-3f3f46">
-  <img alt="License" src="https://img.shields.io/badge/self--hosted-yes-22c55e">
+  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-yes-22c55e">
+  <img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue">
 </p>
 
 Every tool lives inside a **group** (your flat, trip, regular crew, ...), and
@@ -38,6 +39,7 @@ shopping lists — and is designed so you can bolt on more as independent module
 - [Internationalisation](#internationalisation)
 - [Security](#security)
 - [Later: Tauri v2 desktop/mobile app](#later-tauri-v2-desktopmobile-app)
+- [License](#license)
 
 ---
 
@@ -279,3 +281,17 @@ can stay HTTP-only in that case.
 The frontend is a standard SPA and can be embedded in Tauri v2 without
 changes. Set `VITE_API_URL` at build time to point the app at your
 production backend.
+
+## License
+
+friendflow is licensed under the **GNU Affero General Public License v3.0
+or later** (AGPL-3.0-or-later). See [LICENSE](LICENSE) for the full text.
+
+In short: you are free to run, study, modify and redistribute friendflow.
+If you run a **modified** version as a network service, you must make the
+modified source code available to its users — typically by linking to a
+public repository of your fork. Running an **unmodified** instance for
+yourself and your friends imposes no such obligation.
+
+If that doesn't fit your use-case, open an issue — dual-licensing can be
+discussed on a case-by-case basis.
