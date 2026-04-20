@@ -27,7 +27,6 @@ import type {
   Trip,
   TripItineraryItem,
 } from "../../api/types";
-import DayPicker from "../../components/DayPicker";
 import MonthCalendar, { type DayBadge } from "../../components/MonthCalendar";
 import {
   addDays,
@@ -1529,15 +1528,18 @@ function EventForm({
           <label className="label" htmlFor="ev_start_date">
             {t("calendar.overview.startDate")}
           </label>
-          <DayPicker
+          <input
             id="ev_start_date"
-            value={startDate}
-            onChange={(v) => {
-              setStartDate(v);
-              if (endDate && endDate < v) setEndDate(v);
-            }}
+            type="date"
             required
-            ariaLabel={t("calendar.overview.startDate")}
+            className="input tabular-nums"
+            value={startDate}
+            aria-label={t("calendar.overview.startDate")}
+            onChange={(e) => {
+              const v = e.target.value;
+              setStartDate(v);
+              if (endDate && v && endDate < v) setEndDate(v);
+            }}
           />
         </div>
         {!allDay && (
@@ -1562,12 +1564,15 @@ function EventForm({
           <label className="label" htmlFor="ev_end_date">
             {t("calendar.overview.endDate")}
           </label>
-          <DayPicker
+          <input
             id="ev_end_date"
+            type="date"
+            className="input tabular-nums"
             value={endDate}
-            onChange={setEndDate}
-            ariaLabel={t("calendar.overview.endDate")}
+            min={startDate || undefined}
+            aria-label={t("calendar.overview.endDate")}
             placeholder={t("calendar.overview.endOptional")}
+            onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
         {!allDay && (
