@@ -45,6 +45,11 @@ pub struct SmtpConfig {
     /// (`noreply@example.com`) or a full mailbox with display name
     /// (`friendflow <noreply@example.com>`).
     pub from: String,
+    /// When true, resolve `host` and connect to the first IPv4 address only.
+    /// Some VPS networks misconfigure IPv6; the OS then tries AAAA first and
+    /// the TCP handshake hangs until timeout. Set `SMTP_FORCE_IPV4=1` on the
+    /// server if outbound SMTP works from your laptop but not in production.
+    pub force_ipv4: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,6 +89,15 @@ pub struct Config {
 }
 
 impl Config {
+    /// Hostname from `APP_BASE_URL` for SMTP `EHLO` / `ClientId` (e.g.
+    /// `friendflow.site`). Used when connecting via IP so we still identify
+    /// as your app, not as `smtp.resend.com` or `127.0.0.1`.
+    pub fn smtp_ehlo_domain(&self) -> Option<String> {
+        url::Url::parse(&self.app_base_url)
+            .ok()
+            .and_then(|u| u.host_str().map(|s| s.to_string()))
+    }
+
     pub fn from_env() -> Result<Self> {
         let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL is required")?;
         let jwt_secret = std::env::var("JWT_SECRET").context("JWT_SECRET is required")?;
@@ -183,6 +197,16 @@ fn parse_smtp_config() -> Result<Option<SmtpConfig>> {
             "SMTP_FROM is required when SMTP_HOST is set - e.g. 'friendflow <noreply@example.com>'",
         )?;
 
+    let force_ipv4 = std::env::var("SMTP_FORCE_IPV4")
+        .ok()
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false);
+
     Ok(Some(SmtpConfig {
         host,
         port,
@@ -190,5 +214,6 @@ fn parse_smtp_config() -> Result<Option<SmtpConfig>> {
         username,
         password,
         from,
+        force_ipv4,
     }))
 }

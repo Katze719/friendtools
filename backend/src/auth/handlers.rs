@@ -307,12 +307,13 @@ pub async fn forgot_password(
         // always gets an immediate `{"status":"ok"}`; failures are only
         // visible in server logs (see also anti-enumeration above).
         let smtp_for_mail = smtp.clone();
+        let ehlo_domain = state.cfg.smtp_ehlo_domain();
         let to_addr = user_email;
         let text = render_reset_email_text(&display_name, &reset_url);
         let html = render_reset_email_html(&display_name, &reset_url);
         let log_user_id = user_id;
         tokio::spawn(async move {
-            match Mailer::new(&smtp_for_mail) {
+            match Mailer::connect(&smtp_for_mail, ehlo_domain.as_deref()).await {
                 Ok(mailer) => {
                     let subject = "Reset your friendflow password";
                     if let Err(e) = mailer.send(&to_addr, subject, &text, &html).await {
