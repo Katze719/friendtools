@@ -300,31 +300,23 @@ pub async fn forgot_password(
             raw_token
         );
 
-        // Never block the HTTP response on SMTP. A slow TLS handshake or
-        // a flaky relay can take longer than nginx's `proxy_read_timeout`
-        // (60s in the bundled config), which surfaces to the browser as
-        // 504 even though the DB work already succeeded. The client
-        // always gets an immediate `{"status":"ok"}`; failures are only
-        // visible in server logs (see also anti-enumeration above).
-        let smtp_for_mail = smtp.clone();
-        let ehlo_domain = state.cfg.smtp_ehlo_domain();
-        let to_addr = user_email;
-        let text = render_reset_email_text(&display_name, &reset_url);
-        let html = render_reset_email_html(&display_name, &reset_url);
-        let log_user_id = user_id;
-        tokio::spawn(async move {
-            match Mailer::connect(&smtp_for_mail, ehlo_domain.as_deref()).await {
-                Ok(mailer) => {
-                    let subject = "Reset your friendflow password";
-                    if let Err(e) = mailer.send(&to_addr, subject, &text, &html).await {
-                        tracing::error!(error = ?e, user_id = %log_user_id, "failed to send password reset email");
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "failed to build SMTP mailer");
+        // Sending the mail runs in the request task so failures surface
+        // as a 500 during development - in production an admin sees the
+        // error in the logs and can fix their SMTP setup. We do NOT
+        // leak SMTP errors to the client, again to avoid enumeration.
+        match Mailer::new(&smtp) {
+            Ok(mailer) => {
+                let subject = "Reset your friendflow password";
+                let text = render_reset_email_text(&display_name, &reset_url);
+                let html = render_reset_email_html(&display_name, &reset_url);
+                if let Err(e) = mailer.send(&user_email, subject, &text, &html).await {
+                    tracing::error!(error = ?e, user_id = %user_id, "failed to send password reset email");
                 }
             }
-        });
+            Err(e) => {
+                tracing::error!(error = ?e, "failed to build SMTP mailer");
+            }
+        }
     } else {
         // Unknown / unapproved email: do nothing, but take a similar
         // amount of wall-clock time as the success path would. A full

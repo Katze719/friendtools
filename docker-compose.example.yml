@@ -53,8 +53,6 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      # 1 = connect to SMTP relay over IPv4 only (helps on hosts with broken IPv6)
-      SMTP_FORCE_IPV4: ${SMTP_FORCE_IPV4:-}
     # Reachable only inside the compose network (as `backend:3000`).
     # The frontend's nginx proxies /api/ to it; no host port exposure needed.
     expose:
