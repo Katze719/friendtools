@@ -5,6 +5,7 @@ import { api } from "../api/client";
 
 interface AuthConfig {
   registration_mode: "approval" | "open";
+  password_reset_enabled?: boolean;
 }
 
 /**

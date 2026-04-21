@@ -47,6 +47,17 @@ reqwest = { version = "0.12", default-features = false, features = [
 scraper = "0.20"
 url = "2"
 
+lettre = { version = "0.11", default-features = false, features = [
+    "tokio1",
+    "tokio1-rustls-tls",
+    "smtp-transport",
+    "builder",
+    "rustls-tls",
+] }
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+
 [profile.release]
 opt-level = 3
 lto = "thin"

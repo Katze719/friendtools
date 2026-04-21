@@ -4,12 +4,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import InstallAppButton from "../components/InstallAppButton";
 import { useAuth } from "../context/AuthContext";
+import { useAuthConfig } from "../lib/authConfig";
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as { state?: { from?: { pathname?: string } } };
   const { t } = useTranslation();
+  const authConfig = useAuthConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,17 @@ export default function Login() {
             />
           </div>
           <div className="space-y-1">
-            <label className="label" htmlFor="password">{t("auth.fields.password")}</label>
+            <div className="flex items-baseline justify-between gap-2">
+              <label className="label" htmlFor="password">{t("auth.fields.password")}</label>
+              {authConfig?.password_reset_enabled && (
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+                >
+                  {t("auth.login.forgotPassword")}
+                </Link>
+              )}
+            </div>
             <input
               id="password"
               type="password"

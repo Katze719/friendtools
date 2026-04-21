@@ -7,11 +7,13 @@ import { useAuth } from "./context/AuthContext";
 import { isLandingModeEnabled } from "./lib/landingMode";
 import AdminUsers from "./pages/AdminUsers";
 import Dashboard from "./pages/Dashboard";
+import ForgotPassword from "./pages/ForgotPassword";
 import GroupHome from "./pages/GroupHome";
 import Invite from "./pages/Invite";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import PendingApproval from "./pages/PendingApproval";
+import ResetPassword from "./pages/ResetPassword";
 import PersonalCalendar from "./pages/PersonalCalendar";
 import PersonalShopping from "./pages/PersonalShopping";
 import PersonalShoppingList from "./pages/PersonalShoppingList";
@@ -24,6 +26,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/pending" element={<PendingApproval />} />
       <Route path="/i/:code" element={<Invite />} />
       {/* Root is special: authenticated users get the Dashboard, everyone

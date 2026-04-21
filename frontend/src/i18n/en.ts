@@ -303,6 +303,7 @@ const en = {
       noAccount: "No account yet?",
       register: "Sign up",
       failed: "Login failed",
+      forgotPassword: "Forgot password?",
     },
     register: {
       title: "Create account",
@@ -313,6 +314,38 @@ const en = {
       login: "Sign in",
       passwordHint: "At least 8 characters.",
       failed: "Registration failed",
+    },
+    forgot: {
+      title: "Reset your password",
+      subtitle:
+        "Enter your email and we'll send you a link to choose a new password.",
+      submit: "Send reset link",
+      submitting: "Sending...",
+      failed: "Could not send reset link",
+      backToLogin: "Back to sign in",
+      sentTitle: "Check your inbox",
+      sentBody:
+        "If an account exists for that email, we just sent a link to reset your password.",
+      sentHint:
+        "The link is valid for 1 hour. Don't forget to check your spam folder.",
+    },
+    reset: {
+      title: "Choose a new password",
+      subtitle: "Pick something you'll remember - at least 8 characters.",
+      newPassword: "New password",
+      confirmPassword: "Confirm new password",
+      submit: "Save new password",
+      submitting: "Saving...",
+      failed: "Could not reset password",
+      errorShort: "Password must be at least 8 characters.",
+      errorMismatch: "The two passwords don't match.",
+      doneTitle: "Password updated",
+      doneBody: "You can sign in with your new password now.",
+      goToLogin: "Sign in",
+      invalidTitle: "Invalid reset link",
+      invalidBody:
+        "This link is missing a token or is no longer valid. Request a new one to continue.",
+      requestNew: "Request a new link",
     },
     fields: {
       email: "Email",

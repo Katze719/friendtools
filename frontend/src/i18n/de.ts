@@ -305,6 +305,7 @@ const de: Translations = {
       noAccount: "Noch kein Konto?",
       register: "Registrieren",
       failed: "Anmeldung fehlgeschlagen",
+      forgotPassword: "Passwort vergessen?",
     },
     register: {
       title: "Konto anlegen",
@@ -315,6 +316,39 @@ const de: Translations = {
       login: "Anmelden",
       passwordHint: "Mindestens 8 Zeichen.",
       failed: "Registrierung fehlgeschlagen",
+    },
+    forgot: {
+      title: "Passwort zurücksetzen",
+      subtitle:
+        "Gib deine E-Mail-Adresse ein und wir schicken dir einen Link, mit dem du ein neues Passwort vergeben kannst.",
+      submit: "Link senden",
+      submitting: "Sende...",
+      failed: "Link konnte nicht gesendet werden",
+      backToLogin: "Zurück zur Anmeldung",
+      sentTitle: "Schau in dein Postfach",
+      sentBody:
+        "Falls zu dieser E-Mail ein Konto existiert, haben wir gerade einen Link zum Zurücksetzen des Passworts verschickt.",
+      sentHint:
+        "Der Link ist 1 Stunde gültig. Schau auch kurz im Spam-Ordner nach.",
+    },
+    reset: {
+      title: "Neues Passwort wählen",
+      subtitle:
+        "Such dir etwas aus, das du dir merken kannst - mindestens 8 Zeichen.",
+      newPassword: "Neues Passwort",
+      confirmPassword: "Neues Passwort bestätigen",
+      submit: "Neues Passwort speichern",
+      submitting: "Speichere...",
+      failed: "Passwort konnte nicht zurückgesetzt werden",
+      errorShort: "Das Passwort muss mindestens 8 Zeichen haben.",
+      errorMismatch: "Die beiden Passwörter stimmen nicht überein.",
+      doneTitle: "Passwort aktualisiert",
+      doneBody: "Du kannst dich jetzt mit deinem neuen Passwort anmelden.",
+      goToLogin: "Anmelden",
+      invalidTitle: "Ungültiger Link",
+      invalidBody:
+        "Diesem Link fehlt ein Token oder er ist nicht mehr gültig. Fordere einen neuen an, um fortzufahren.",
+      requestNew: "Neuen Link anfordern",
     },
     fields: {
       email: "E-Mail",

@@ -23,6 +23,7 @@ mod config;
 mod db;
 mod error;
 mod groups;
+mod mail;
 mod shopping;
 mod splitwise;
 mod state;

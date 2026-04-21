@@ -40,6 +40,19 @@ services:
       #                        in immediately after registration (good for
       #                        public / self-hosted demo instances).
       REGISTRATION_MODE: ${REGISTRATION_MODE:-approval}
+      # --- Password recovery via email ---------------------------------------
+      # Set SMTP_HOST to enable the "Forgot password?" link on the login
+      # screen. Without it, password recovery stays fully disabled and
+      # the link is hidden. APP_BASE_URL is the public URL of the
+      # frontend and is baked into the reset links sent out by mail -
+      # leave it blank to fall back to the first CORS_ORIGIN entry.
+      APP_BASE_URL: ${APP_BASE_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     # Reachable only inside the compose network (as `backend:3000`).
     # The frontend's nginx proxies /api/ to it; no host port exposure needed.
     expose:

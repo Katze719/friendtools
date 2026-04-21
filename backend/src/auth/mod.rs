@@ -16,4 +16,6 @@ pub fn routes() -> Router<AppState> {
         .route("/login", post(handlers::login))
         .route("/me", get(handlers::me))
         .route("/config", get(handlers::config))
+        .route("/password/forgot", post(handlers::forgot_password))
+        .route("/password/reset", post(handlers::reset_password))
 }
