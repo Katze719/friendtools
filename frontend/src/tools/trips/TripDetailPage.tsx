@@ -12,6 +12,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Trip } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import InfoTab from "./InfoTab";
 import ItineraryTab from "./ItineraryTab";
 import LinksTab from "./LinksTab";
@@ -129,7 +130,7 @@ export default function TripDetailPage() {
     );
   }
   if (!group || !trip || !tab) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   const incomplete = needsInfoSetup(trip);

@@ -7,6 +7,7 @@ import type {
   CalendarEvent,
   GroupSummary,
 } from "../api/types";
+import LoadingState from "../components/LoadingState";
 import { calendarApi } from "../tools/calendar/api";
 import CalendarView from "../tools/calendar/CalendarView";
 
@@ -86,9 +87,7 @@ export default function PersonalCalendarPage() {
     );
   }
   if (!events) {
-    return (
-      <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>
-    );
+    return <LoadingState />;
   }
 
   const groupsById = new Map(groups.map((g) => [g.id, g]));

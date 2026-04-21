@@ -21,6 +21,7 @@ import type {
 } from "../../api/types";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import HelpBanner from "../../components/HelpBanner";
+import LoadingState from "../../components/LoadingState";
 import { addDays, startOfDay, toDateKey } from "../../lib/date";
 import { formatTime } from "../../lib/format";
 import { calendarApi } from "../calendar/api";
@@ -153,7 +154,7 @@ export default function ItineraryTab({
   }, [items, days, calendarByDay]);
 
   if (!items) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   const locale = i18n.language;

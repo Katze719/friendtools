@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { adminApi } from "../api/admin";
 import { ApiError } from "../api/client";
 import type { AdminUserRow } from "../api/types";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
 import { formatDate } from "../lib/format";
 import { useConfirm } from "../ui/UIProvider";
@@ -186,7 +187,7 @@ export default function AdminUsers() {
       )}
 
       {users === null ? (
-        <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>
+        <LoadingState compact />
       ) : users.length === 0 ? (
         <p className="card p-8 text-center text-slate-500 dark:text-slate-400">{t("admin.empty")}</p>
       ) : filteredUsers && filteredUsers.length === 0 ? (

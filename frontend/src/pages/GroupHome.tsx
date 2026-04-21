@@ -18,6 +18,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
 import type { GroupDetail } from "../api/types";
+import LoadingState from "../components/LoadingState";
 import { formatDate } from "../lib/format";
 import { toolPath, tools } from "../tools";
 import { useFavoriteTools } from "../tools/useFavoriteTools";
@@ -177,7 +178,7 @@ export default function GroupHome() {
   if (error && !group) {
     return <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>;
   }
-  if (!group) return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+  if (!group) return <LoadingState />;
 
   const isOwner = group.my_role === "owner";
 

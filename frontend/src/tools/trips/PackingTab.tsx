@@ -13,6 +13,7 @@ import { ApiError } from "../../api/client";
 import type { GroupDetail, Trip, TripPackingItem } from "../../api/types";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import HelpBanner from "../../components/HelpBanner";
+import LoadingState from "../../components/LoadingState";
 import { tripsApi } from "./api";
 
 /**
@@ -183,7 +184,7 @@ export default function PackingTab({
   }, [items]);
 
   if (!items) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   return (

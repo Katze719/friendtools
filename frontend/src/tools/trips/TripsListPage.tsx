@@ -14,6 +14,7 @@ import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Trip } from "../../api/types";
 import HelpBanner from "../../components/HelpBanner";
+import LoadingState from "../../components/LoadingState";
 import { formatMoney } from "../../lib/format";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tripsApi } from "./api";
@@ -76,7 +77,7 @@ export default function TripsListPage() {
     );
   }
   if (!group || !trips) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   return (

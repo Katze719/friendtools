@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
 
 /**
@@ -36,11 +37,7 @@ export default function Invite() {
   }, [loading, user, code, navigate, t]);
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-12 text-slate-500 dark:text-slate-400">
-        {t("common.loading")}
-      </div>
-    );
+    return <LoadingState fullHeight />;
   }
 
   if (!user) {

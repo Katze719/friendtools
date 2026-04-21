@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
 import type { GroupSummary } from "../api/types";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
@@ -116,7 +117,7 @@ export default function Dashboard() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">{t("dashboard.yourGroups")}</h2>
         {groups === null ? (
-          <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>
+          <LoadingState compact />
         ) : groups.length === 0 ? (
           <EmptyState />
         ) : (

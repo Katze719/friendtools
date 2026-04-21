@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
+import LoadingState from "./components/LoadingState";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { isLandingModeEnabled } from "./lib/landingMode";
@@ -64,14 +65,9 @@ export default function App() {
 function RootGate() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const { t } = useTranslation();
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-12 text-slate-500">
-        {t("common.loading")}
-      </div>
-    );
+    return <LoadingState fullHeight />;
   }
   if (user) {
     return (

@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Trip } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import { useAuth } from "../../context/AuthContext";
 import { formatMoney, parseAmountToCents } from "../../lib/format";
 import { tripsApi } from "../trips/api";
@@ -178,8 +179,7 @@ export default function SplitwiseNewExpensePage() {
       <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
     );
   }
-  if (!group || loading)
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+  if (!group || loading) return <LoadingState />;
 
   return (
     <div className="space-y-5">

@@ -20,6 +20,7 @@ import type {
   Settlement,
   SplitwiseSummary,
 } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import { useAuth } from "../../context/AuthContext";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { useConfirm, useToast } from "../../ui/UIProvider";
@@ -95,8 +96,7 @@ export default function SplitwiseOverviewPage() {
   if (error && !group) {
     return <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>;
   }
-  if (!group || !summary || !expenses || !payments)
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+  if (!group || !summary || !expenses || !payments) return <LoadingState />;
 
   const currency = summary.currency;
   const myBalance = summary.my_balance_cents;

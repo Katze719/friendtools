@@ -10,6 +10,7 @@ import type {
   Trip,
   TripItineraryItem,
 } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import { tripsApi } from "../trips/api";
 import { calendarApi } from "./api";
 import CalendarView from "./CalendarView";
@@ -96,7 +97,7 @@ export default function CalendarOverviewPage() {
     );
   }
   if (!group || !groupEvents) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   const mergedEvents: CalendarEvent[] = showPersonalOverlay

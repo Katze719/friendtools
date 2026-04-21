@@ -21,6 +21,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Task, TaskPriority } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../lib/format";
 import { useConfirm, useToast } from "../../ui/UIProvider";
@@ -130,9 +131,7 @@ export default function TasksOverviewPage() {
     );
   }
   if (!group || !tasks) {
-    return (
-      <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>
-    );
+    return <LoadingState />;
   }
 
   const filters: { id: Filter; label: string }[] = [

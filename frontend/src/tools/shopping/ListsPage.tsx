@@ -12,6 +12,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, ShoppingList } from "../../api/types";
+import LoadingState from "../../components/LoadingState";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { shoppingListsApi } from "./api";
 
@@ -73,7 +74,7 @@ export default function ShoppingListsPage() {
     );
   }
   if (!group || !lists) {
-    return <p className="text-slate-500 dark:text-slate-400">{t("common.loading")}</p>;
+    return <LoadingState />;
   }
 
   return (
