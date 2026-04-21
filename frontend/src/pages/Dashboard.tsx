@@ -1,5 +1,5 @@
 import { ArrowRight, CalendarRange, Plus, UserPlus, Users } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
@@ -8,27 +8,75 @@ import type { GroupSummary } from "../api/types";
 import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
 
+/**
+ * localStorage key for the cached groups list. Lets the dashboard paint the
+ * group cards instantly on reload (stale-while-revalidate) instead of
+ * showing the spinner for a full network round-trip every time.
+ *
+ * Kept in sync with `clearAuthCaches()` in AuthContext - if you add more
+ * dashboard-level caches, clear them there too so logout doesn't leak
+ * data across sessions.
+ */
+const GROUPS_CACHE_KEY = "friendflow.groups";
+
+function readCachedGroups(): GroupSummary[] | null {
+  try {
+    const raw = localStorage.getItem(GROUPS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    // Loose structural check - if the shape evolves we'd rather drop the
+    // cache than render with missing fields.
+    for (const g of parsed) {
+      if (
+        !g ||
+        typeof g !== "object" ||
+        typeof (g as GroupSummary).id !== "string" ||
+        typeof (g as GroupSummary).name !== "string"
+      ) {
+        return null;
+      }
+    }
+    return parsed as GroupSummary[];
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedGroups(groups: GroupSummary[] | null): void {
+  try {
+    if (groups) localStorage.setItem(GROUPS_CACHE_KEY, JSON.stringify(groups));
+    else localStorage.removeItem(GROUPS_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [groups, setGroups] = useState<GroupSummary[] | null>(null);
+  const [groups, setGroups] = useState<GroupSummary[] | null>(() =>
+    readCachedGroups(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
   const firstName = user?.display_name.split(" ")[0] ?? "you";
 
-  const reload = () => {
+  const reload = useCallback(() => {
     groupsApi
       .list()
-      .then(setGroups)
+      .then((list) => {
+        setGroups(list);
+        writeCachedGroups(list);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  };
+  }, [t]);
 
   useEffect(() => {
     reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reload]);
 
   return (
     <div className="space-y-8">
