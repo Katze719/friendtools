@@ -38,6 +38,8 @@ const de: Translations = {
     adminWithPending: "Admin ({{count}} offen)",
     menu: "Menü",
     personalCalendar: "Mein Kalender",
+    personalShopping: "Mein Einkauf",
+    personalTasks: "Meine Aufgaben",
     dashboard: "Übersicht",
     footer: "friendflow - selbst gehostet für dich und deine Leute",
   },
@@ -335,6 +337,10 @@ const de: Translations = {
     personalTools: "Für dich",
     personalCalendarDescription:
       "Private Termine, die nur du siehst - unabhängig von jeder Gruppe.",
+    personalShoppingDescription:
+      "Private Einkaufslisten, die nur du siehst - mit optionalem Blick auf alle Gruppenlisten.",
+    personalTasksDescription:
+      "Private Aufgaben plus alle Gruppen-Tasks, die dir zugeteilt sind - gebündelt an einem Ort.",
     open: "Öffnen",
     join: "Beitreten",
     newGroup: "Neue Gruppe",
@@ -956,6 +962,21 @@ const de: Translations = {
         "Soll '{{name}}' mit allen Artikeln gelöscht werden? Ist es deine letzte Liste, wird automatisch eine neue leere angelegt.",
       deleted: "Liste gelöscht.",
     },
+    personal: {
+      title: "Mein Einkauf",
+      subtitle:
+        "Private Listen nur für dich - mit optionalem Blick auf alle Gruppenlisten.",
+      yourListsTitle: "Deine Listen",
+      groupListsTitle: "Gruppenlisten",
+      toggleGroupLists: "Gruppenlisten einblenden",
+      noGroupLists:
+        "Keine deiner Gruppen hat bislang eine Einkaufsliste.",
+      emptyTitle: "Noch keine persönlichen Listen",
+      emptyHint:
+        "Leg deine erste private Liste an - z. B. 'Wocheneinkauf' oder 'Baumarkt'.",
+      backToLists: "Alle meine Listen",
+      listSubtitle: "Private Liste - nur für dich sichtbar.",
+    },
     overview: {
       backToGroup: "Zur Gruppe",
       title: "Einkaufsliste",
@@ -1127,6 +1148,19 @@ const de: Translations = {
         description:
           "Leg die erste Aufgabe an - und weise sie jemandem zu.",
       },
+    },
+    personal: {
+      title: "Meine Aufgaben",
+      subtitle:
+        "Deine privaten Aufgaben plus alles, was dir in Gruppen zugeteilt ist.",
+      yourTasksTitle: "Meine Aufgaben",
+      assignedInGroups: "Mir in Gruppen zugeteilt",
+      toggleOverlay: "Gruppenaufgaben anzeigen",
+      noAssignedTasks: "Aktuell ist dir nichts zugeteilt.",
+      openInGroup: "In der Gruppe öffnen",
+      emptyTitle: "Noch keine persönlichen Aufgaben",
+      emptyHint:
+        "Notier dir eine erste To-do. Private Aufgaben haben keinen Zuständigen - sie gehören einfach dir.",
     },
   },
   invite: {

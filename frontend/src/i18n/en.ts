@@ -36,6 +36,8 @@ const en = {
     adminWithPending: "Admin ({{count}} pending)",
     menu: "Menu",
     personalCalendar: "My calendar",
+    personalShopping: "My shopping",
+    personalTasks: "My tasks",
     dashboard: "Dashboard",
     footer: "friendflow - self-hosted for you and your people",
   },
@@ -333,6 +335,10 @@ const en = {
     personalTools: "For you",
     personalCalendarDescription:
       "Private events that only you see - independent of any group.",
+    personalShoppingDescription:
+      "Private shopping lists only you see, plus a quick overview of every group's lists.",
+    personalTasksDescription:
+      "Private todos plus every group task assigned to you - all in one place.",
     open: "Open",
     join: "Join",
     newGroup: "New group",
@@ -952,6 +958,20 @@ const en = {
         "Delete '{{name}}' and all of its items? If this is your last list, a fresh empty one will be created.",
       deleted: "List deleted.",
     },
+    personal: {
+      title: "My shopping",
+      subtitle:
+        "Private lists only you see, plus optional view of every group's lists.",
+      yourListsTitle: "Your lists",
+      groupListsTitle: "Group lists",
+      toggleGroupLists: "Show lists from my groups",
+      noGroupLists: "None of your groups has a shopping list yet.",
+      emptyTitle: "No personal lists yet",
+      emptyHint:
+        "Create your first private list - e.g. 'Weekly groceries' or 'Hardware store'.",
+      backToLists: "All my lists",
+      listSubtitle: "Private list - only visible to you.",
+    },
     overview: {
       backToGroup: "Back to group",
       title: "Shopping list",
@@ -1123,6 +1143,19 @@ const en = {
         description:
           "Add the first chore or errand - and assign it to someone.",
       },
+    },
+    personal: {
+      title: "My tasks",
+      subtitle:
+        "Your private todos plus everything assigned to you in groups.",
+      yourTasksTitle: "My tasks",
+      assignedInGroups: "Assigned in groups",
+      toggleOverlay: "Show group tasks assigned to me",
+      noAssignedTasks: "Nothing assigned to you right now.",
+      openInGroup: "Open in group",
+      emptyTitle: "No personal tasks yet",
+      emptyHint:
+        "Capture something you need to do. Private tasks have no assignee - they're just yours.",
     },
   },
   invite: {

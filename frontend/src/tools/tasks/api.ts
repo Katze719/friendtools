@@ -48,3 +48,25 @@ export const tasksApi = {
       { method: "POST" },
     ),
 };
+
+/** Personal tasks owned by the authenticated user. The backend rejects
+ *  `assigned_to` in payloads here (the owner is implicit), so the UI
+ *  must never try to set one. */
+export const personalTasksApi = {
+  list: () => api<Task[]>("/api/me/tasks"),
+  create: (body: Omit<CreateTaskPayload, "assigned_to">) =>
+    api<Task>("/api/me/tasks", { method: "POST", body }),
+  update: (taskId: string, body: Omit<UpdateTaskPayload, "assigned_to">) =>
+    api<Task>(`/api/me/tasks/${taskId}`, { method: "PATCH", body }),
+  toggle: (taskId: string, done?: boolean) =>
+    api<Task>(`/api/me/tasks/${taskId}/toggle`, {
+      method: "PUT",
+      body: done === undefined ? {} : { done },
+    }),
+  remove: (taskId: string) =>
+    api<{ ok: true }>(`/api/me/tasks/${taskId}`, { method: "DELETE" }),
+  clearDone: () =>
+    api<{ ok: true; removed: number }>("/api/me/tasks/clear-done", {
+      method: "POST",
+    }),
+};

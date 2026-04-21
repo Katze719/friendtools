@@ -1,4 +1,12 @@
-import { ArrowRight, CalendarRange, Plus, UserPlus, Users } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarRange,
+  ClipboardList,
+  Plus,
+  ShoppingBasket,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -138,27 +146,27 @@ export default function Dashboard() {
           {t("dashboard.personalTools")}
         </h2>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <li>
-            <Link
-              to="/me/calendar"
-              className="card group flex h-full flex-col gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500 text-white">
-                  <CalendarRange className="h-5 w-5" />
-                </span>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                  {t("layout.personalCalendar")}
-                </h3>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                {t("dashboard.personalCalendarDescription")}
-              </p>
-              <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-brand-600 group-hover:gap-2 transition-all dark:text-brand-400">
-                {t("dashboard.open")} <ArrowRight className="h-4 w-4" />
-              </span>
-            </Link>
-          </li>
+          <PersonalToolCard
+            to="/me/calendar"
+            title={t("layout.personalCalendar")}
+            description={t("dashboard.personalCalendarDescription")}
+            icon={<CalendarRange className="h-5 w-5" />}
+            iconBg="bg-violet-500"
+          />
+          <PersonalToolCard
+            to="/me/shopping"
+            title={t("layout.personalShopping")}
+            description={t("dashboard.personalShoppingDescription")}
+            icon={<ShoppingBasket className="h-5 w-5" />}
+            iconBg="bg-amber-500"
+          />
+          <PersonalToolCard
+            to="/me/tasks"
+            title={t("layout.personalTasks")}
+            description={t("dashboard.personalTasksDescription")}
+            icon={<ClipboardList className="h-5 w-5" />}
+            iconBg="bg-emerald-500"
+          />
         </ul>
       </section>
 
@@ -177,6 +185,47 @@ export default function Dashboard() {
         )}
       </section>
     </div>
+  );
+}
+
+function PersonalToolCard({
+  to,
+  title,
+  description,
+  icon,
+  iconBg,
+}: {
+  to: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  iconBg: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <li>
+      <Link
+        to={to}
+        className="card group flex h-full flex-col gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-white ${iconBg}`}
+          >
+            {icon}
+          </span>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            {title}
+          </h3>
+        </div>
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          {description}
+        </p>
+        <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-brand-600 transition-all group-hover:gap-2 dark:text-brand-400">
+          {t("dashboard.open")} <ArrowRight className="h-4 w-4" />
+        </span>
+      </Link>
+    </li>
   );
 }
 

@@ -14,10 +14,41 @@ use crate::{
     state::AppState,
 };
 
+/// Owner axis for task rows. A task either belongs to a group (shared
+/// with every member, assignable to anyone in the group) or to a single
+/// user (personal todo, never assignable). The SQL side enforces
+/// exactly-one owner via a CHECK constraint.
+#[derive(Debug, Clone, Copy)]
+pub enum Scope {
+    Group { group_id: Uuid, user_id: Uuid },
+    Personal { user_id: Uuid },
+}
+
+impl Scope {
+    pub fn acting_user(&self) -> Uuid {
+        match self {
+            Scope::Group { user_id, .. } | Scope::Personal { user_id } => *user_id,
+        }
+    }
+
+    pub async fn for_group(state: &AppState, group_id: Uuid, user: &AuthUser) -> AppResult<Self> {
+        crate::groups::ensure_member(state, group_id, user.id).await?;
+        Ok(Scope::Group {
+            group_id,
+            user_id: user.id,
+        })
+    }
+
+    pub fn for_personal(user: &AuthUser) -> Self {
+        Scope::Personal { user_id: user.id }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Task {
     pub id: Uuid,
-    pub group_id: Uuid,
+    pub group_id: Option<Uuid>,
+    pub owner_user_id: Option<Uuid>,
     pub title: String,
     pub description: String,
     pub priority: String,
@@ -106,62 +137,185 @@ fn validate_priority(value: &str) -> AppResult<&'static str> {
     }
 }
 
-pub async fn list_tasks(
+// ---------- group-scoped handlers ----------
+
+pub async fn list_group_tasks(
     State(state): State<AppState>,
     user: AuthUser,
     Path(group_id): Path<Uuid>,
 ) -> AppResult<Json<Vec<Task>>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    Ok(Json(fetch_tasks(&state.db, group_id).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    Ok(Json(fetch_tasks(&state.db, scope).await?))
 }
 
-pub async fn create_task(
+pub async fn create_group_task(
     State(state): State<AppState>,
     user: AuthUser,
     Path(group_id): Path<Uuid>,
     Json(payload): Json<CreateTaskRequest>,
 ) -> AppResult<Json<Task>> {
-    payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    if let Some(assignee) = payload.assigned_to {
-        ensure_member_of(&state, group_id, assignee).await?;
-    }
-    let priority = match payload.priority.as_deref() {
-        Some(p) => validate_priority(p)?,
-        None => "normal",
-    };
-
-    let id: (Uuid,) = sqlx::query_as(
-        "INSERT INTO tasks
-            (group_id, title, description, assigned_to, due_date, priority, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id",
-    )
-    .bind(group_id)
-    .bind(payload.title.trim())
-    .bind(payload.description.trim())
-    .bind(payload.assigned_to)
-    .bind(payload.due_date)
-    .bind(priority)
-    .bind(user.id)
-    .fetch_one(&state.db)
-    .await?;
-
-    Ok(Json(fetch_task(&state.db, id.0).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    create_task(&state, scope, payload).await.map(Json)
 }
 
-pub async fn update_task(
+pub async fn update_group_task(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, task_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<UpdateTaskRequest>,
 ) -> AppResult<Json<Task>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    update_task(&state, scope, task_id, payload).await.map(Json)
+}
+
+pub async fn toggle_group_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, task_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<ToggleRequest>,
+) -> AppResult<Json<Task>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    toggle_task(&state.db, scope, task_id, payload).await.map(Json)
+}
+
+pub async fn delete_group_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, task_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    delete_task(&state.db, scope, task_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn clear_group_done(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(group_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    let removed = clear_done(&state.db, scope).await?;
+    Ok(Json(serde_json::json!({ "ok": true, "removed": removed })))
+}
+
+// ---------- personal-scoped handlers ----------
+
+pub async fn list_personal_tasks(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Vec<Task>>> {
+    let scope = Scope::for_personal(&user);
+    Ok(Json(fetch_tasks(&state.db, scope).await?))
+}
+
+pub async fn create_personal_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(payload): Json<CreateTaskRequest>,
+) -> AppResult<Json<Task>> {
+    let scope = Scope::for_personal(&user);
+    create_task(&state, scope, payload).await.map(Json)
+}
+
+pub async fn update_personal_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(task_id): Path<Uuid>,
+    Json(payload): Json<UpdateTaskRequest>,
+) -> AppResult<Json<Task>> {
+    let scope = Scope::for_personal(&user);
+    update_task(&state, scope, task_id, payload).await.map(Json)
+}
+
+pub async fn toggle_personal_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(task_id): Path<Uuid>,
+    Json(payload): Json<ToggleRequest>,
+) -> AppResult<Json<Task>> {
+    let scope = Scope::for_personal(&user);
+    toggle_task(&state.db, scope, task_id, payload).await.map(Json)
+}
+
+pub async fn delete_personal_task(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(task_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_personal(&user);
+    delete_task(&state.db, scope, task_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn clear_personal_done(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_personal(&user);
+    let removed = clear_done(&state.db, scope).await?;
+    Ok(Json(serde_json::json!({ "ok": true, "removed": removed })))
+}
+
+// ---------- core CRUD (scope-agnostic) ----------
+
+async fn create_task(state: &AppState, scope: Scope, payload: CreateTaskRequest) -> AppResult<Task> {
     payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    if !task_exists(&state.db, group_id, task_id).await? {
-        return Err(AppError::NotFound("task not found".into()));
-    }
+
+    // Personal tasks have no assignee concept (the owner is implicit).
+    // Reject callers that try to set one so the data stays clean.
+    let assignee = match scope {
+        Scope::Group { group_id, .. } => {
+            if let Some(id) = payload.assigned_to {
+                ensure_member_of(state, group_id, id).await?;
+            }
+            payload.assigned_to
+        }
+        Scope::Personal { .. } => {
+            if payload.assigned_to.is_some() {
+                return Err(AppError::BadRequest(
+                    "personal tasks cannot have an assignee".into(),
+                ));
+            }
+            None
+        }
+    };
+
+    let priority = match payload.priority.as_deref() {
+        Some(p) => validate_priority(p)?,
+        None => "normal",
+    };
+
+    let (group_id, owner_user_id) = split_scope(scope);
+
+    let id: (Uuid,) = sqlx::query_as(
+        "INSERT INTO tasks
+            (group_id, owner_user_id, title, description, assigned_to,
+             due_date, priority, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id",
+    )
+    .bind(group_id)
+    .bind(owner_user_id)
+    .bind(payload.title.trim())
+    .bind(payload.description.trim())
+    .bind(assignee)
+    .bind(payload.due_date)
+    .bind(priority)
+    .bind(scope.acting_user())
+    .fetch_one(&state.db)
+    .await?;
+
+    fetch_task(&state.db, id.0).await
+}
+
+async fn update_task(
+    state: &AppState,
+    scope: Scope,
+    task_id: Uuid,
+    payload: UpdateTaskRequest,
+) -> AppResult<Task> {
+    payload.validate()?;
+    ensure_task_in_scope(&state.db, task_id, scope).await?;
 
     if let Some(title) = payload.title.as_deref() {
         sqlx::query("UPDATE tasks SET title = $1, updated_at = NOW() WHERE id = $2")
@@ -186,14 +340,29 @@ pub async fn update_task(
             .await?;
     }
     if let Some(assignee_opt) = payload.assigned_to {
-        if let Some(assignee) = assignee_opt {
-            ensure_member_of(&state, group_id, assignee).await?;
+        match scope {
+            Scope::Group { group_id, .. } => {
+                if let Some(id) = assignee_opt {
+                    ensure_member_of(state, group_id, id).await?;
+                }
+                sqlx::query(
+                    "UPDATE tasks SET assigned_to = $1, updated_at = NOW() WHERE id = $2",
+                )
+                .bind(assignee_opt)
+                .bind(task_id)
+                .execute(&state.db)
+                .await?;
+            }
+            Scope::Personal { .. } => {
+                if assignee_opt.is_some() {
+                    return Err(AppError::BadRequest(
+                        "personal tasks cannot have an assignee".into(),
+                    ));
+                }
+                // Explicit-null on personal tasks is a no-op: the column
+                // is already NULL and stays that way.
+            }
         }
-        sqlx::query("UPDATE tasks SET assigned_to = $1, updated_at = NOW() WHERE id = $2")
-            .bind(assignee_opt)
-            .bind(task_id)
-            .execute(&state.db)
-            .await?;
     }
     if let Some(due_opt) = payload.due_date {
         sqlx::query("UPDATE tasks SET due_date = $1, updated_at = NOW() WHERE id = $2")
@@ -203,23 +372,24 @@ pub async fn update_task(
             .await?;
     }
 
-    Ok(Json(fetch_task(&state.db, task_id).await?))
+    fetch_task(&state.db, task_id).await
 }
 
-pub async fn toggle_task(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path((group_id, task_id)): Path<(Uuid, Uuid)>,
-    Json(payload): Json<ToggleRequest>,
-) -> AppResult<Json<Task>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    let current: Option<(bool,)> =
-        sqlx::query_as("SELECT is_done FROM tasks WHERE id = $1 AND group_id = $2")
-            .bind(task_id)
-            .bind(group_id)
-            .fetch_optional(&state.db)
-            .await?;
+async fn toggle_task(
+    pool: &PgPool,
+    scope: Scope,
+    task_id: Uuid,
+    payload: ToggleRequest,
+) -> AppResult<Task> {
+    let (scope_sql, owner) = scope_filter(scope, "t", 2);
+    let sql = format!(
+        "SELECT t.is_done FROM tasks t WHERE t.id = $1 AND {scope_sql}",
+    );
+    let current: Option<(bool,)> = sqlx::query_as(&sql)
+        .bind(task_id)
+        .bind(owner)
+        .fetch_optional(pool)
+        .await?;
     let Some((was_done,)) = current else {
         return Err(AppError::NotFound("task not found".into()));
     };
@@ -232,9 +402,9 @@ pub async fn toggle_task(
                SET is_done = TRUE, done_at = NOW(), done_by = $1, updated_at = NOW()
                WHERE id = $2",
         )
-        .bind(user.id)
+        .bind(scope.acting_user())
         .bind(task_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
     } else {
         sqlx::query(
@@ -243,54 +413,45 @@ pub async fn toggle_task(
                WHERE id = $1",
         )
         .bind(task_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
     }
 
-    Ok(Json(fetch_task(&state.db, task_id).await?))
+    fetch_task(pool, task_id).await
 }
 
-pub async fn delete_task(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path((group_id, task_id)): Path<(Uuid, Uuid)>,
-) -> AppResult<Json<serde_json::Value>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    if !task_exists(&state.db, group_id, task_id).await? {
-        return Err(AppError::NotFound("task not found".into()));
-    }
+async fn delete_task(pool: &PgPool, scope: Scope, task_id: Uuid) -> AppResult<()> {
+    ensure_task_in_scope(pool, task_id, scope).await?;
     sqlx::query("DELETE FROM tasks WHERE id = $1")
         .bind(task_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
-    Ok(Json(serde_json::json!({ "ok": true })))
+    Ok(())
 }
 
-pub async fn clear_done(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(group_id): Path<Uuid>,
-) -> AppResult<Json<serde_json::Value>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    let res = sqlx::query("DELETE FROM tasks WHERE group_id = $1 AND is_done = TRUE")
-        .bind(group_id)
-        .execute(&state.db)
-        .await?;
-    Ok(Json(
-        serde_json::json!({ "ok": true, "removed": res.rows_affected() }),
-    ))
+async fn clear_done(pool: &PgPool, scope: Scope) -> AppResult<u64> {
+    let (scope_sql, owner) = scope_filter(scope, "tasks", 1);
+    let sql = format!("DELETE FROM tasks WHERE is_done = TRUE AND {scope_sql}");
+    let res = sqlx::query(&sql).bind(owner).execute(pool).await?;
+    Ok(res.rows_affected())
 }
 
 // ---------- helpers ----------
 
-async fn task_exists(pool: &PgPool, group_id: Uuid, task_id: Uuid) -> AppResult<bool> {
-    let row: Option<(i64,)> =
-        sqlx::query_as("SELECT 1::BIGINT FROM tasks WHERE id = $1 AND group_id = $2")
-            .bind(task_id)
-            .bind(group_id)
-            .fetch_optional(pool)
-            .await?;
-    Ok(row.is_some())
+async fn ensure_task_in_scope(pool: &PgPool, task_id: Uuid, scope: Scope) -> AppResult<()> {
+    let (scope_sql, owner) = scope_filter(scope, "t", 2);
+    let sql = format!(
+        "SELECT t.id FROM tasks t WHERE t.id = $1 AND {scope_sql}",
+    );
+    let row: Option<(Uuid,)> = sqlx::query_as(&sql)
+        .bind(task_id)
+        .bind(owner)
+        .fetch_optional(pool)
+        .await?;
+    if row.is_none() {
+        return Err(AppError::NotFound("task not found".into()));
+    }
+    Ok(())
 }
 
 async fn ensure_member_of(state: &AppState, group_id: Uuid, user_id: Uuid) -> AppResult<()> {
@@ -308,27 +469,50 @@ async fn ensure_member_of(state: &AppState, group_id: Uuid, user_id: Uuid) -> Ap
     Ok(())
 }
 
-type TaskRow = (
-    Uuid,
-    Uuid,
-    String,
-    String,
-    String,
-    Option<NaiveDate>,
-    bool,
-    Option<DateTime<Utc>>,
-    Option<Uuid>,
-    Option<String>,
-    Option<Uuid>,
-    Option<String>,
-    Uuid,
-    String,
-    DateTime<Utc>,
-    DateTime<Utc>,
-);
+fn split_scope(scope: Scope) -> (Option<Uuid>, Option<Uuid>) {
+    match scope {
+        Scope::Group { group_id, .. } => (Some(group_id), None),
+        Scope::Personal { user_id } => (None, Some(user_id)),
+    }
+}
+
+/// See `shopping::handlers::scope_filter` for the same pattern.
+fn scope_filter(scope: Scope, alias: &str, placeholder: u32) -> (String, Uuid) {
+    match scope {
+        Scope::Group { group_id, .. } => {
+            (format!("{alias}.group_id = ${placeholder}"), group_id)
+        }
+        Scope::Personal { user_id } => {
+            (format!("{alias}.owner_user_id = ${placeholder}"), user_id)
+        }
+    }
+}
+
+// sqlx's tuple FromRow impl is capped at 16 elements; with the extra
+// `owner_user_id` column we have 17, so use a named struct.
+#[derive(sqlx::FromRow)]
+struct TaskRow {
+    id: Uuid,
+    group_id: Option<Uuid>,
+    owner_user_id: Option<Uuid>,
+    title: String,
+    description: String,
+    priority: String,
+    due_date: Option<NaiveDate>,
+    is_done: bool,
+    done_at: Option<DateTime<Utc>>,
+    done_by: Option<Uuid>,
+    done_by_display_name: Option<String>,
+    assigned_to: Option<Uuid>,
+    assigned_to_display_name: Option<String>,
+    created_by: Uuid,
+    created_by_display_name: String,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
 
 const TASK_SELECT: &str = "\
-    SELECT t.id, t.group_id, t.title, t.description, t.priority, t.due_date, \
+    SELECT t.id, t.group_id, t.owner_user_id, t.title, t.description, t.priority, t.due_date, \
            t.is_done, t.done_at, t.done_by, du.display_name AS done_by_display_name, \
            t.assigned_to, au.display_name AS assigned_to_display_name, \
            t.created_by, cu.display_name AS created_by_display_name, \
@@ -340,38 +524,40 @@ const TASK_SELECT: &str = "\
 
 fn row_into_task(row: TaskRow) -> Task {
     Task {
-        id: row.0,
-        group_id: row.1,
-        title: row.2,
-        description: row.3,
-        priority: row.4,
-        due_date: row.5,
-        is_done: row.6,
-        done_at: row.7,
-        done_by: row.8,
-        done_by_display_name: row.9,
-        assigned_to: row.10,
-        assigned_to_display_name: row.11,
-        created_by: row.12,
-        created_by_display_name: row.13,
-        created_at: row.14,
-        updated_at: row.15,
+        id: row.id,
+        group_id: row.group_id,
+        owner_user_id: row.owner_user_id,
+        title: row.title,
+        description: row.description,
+        priority: row.priority,
+        due_date: row.due_date,
+        is_done: row.is_done,
+        done_at: row.done_at,
+        done_by: row.done_by,
+        done_by_display_name: row.done_by_display_name,
+        assigned_to: row.assigned_to,
+        assigned_to_display_name: row.assigned_to_display_name,
+        created_by: row.created_by,
+        created_by_display_name: row.created_by_display_name,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
     }
 }
 
-async fn fetch_tasks(pool: &PgPool, group_id: Uuid) -> AppResult<Vec<Task>> {
+async fn fetch_tasks(pool: &PgPool, scope: Scope) -> AppResult<Vec<Task>> {
     // Open tasks first (sorted by due date asc with NULLs last, then
     // priority high->low, then newest first); done tasks last, most
     // recently completed first so the "Done" list feels recency-sorted.
+    let (scope_sql, owner) = scope_filter(scope, "t", 1);
     let sql = format!(
         "{TASK_SELECT} \
-         WHERE t.group_id = $1 \
+         WHERE {scope_sql} \
          ORDER BY t.is_done ASC, \
                   t.due_date ASC NULLS LAST, \
                   CASE t.priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END ASC, \
-                  t.created_at DESC"
+                  t.created_at DESC",
     );
-    let rows: Vec<TaskRow> = sqlx::query_as(&sql).bind(group_id).fetch_all(pool).await?;
+    let rows: Vec<TaskRow> = sqlx::query_as(&sql).bind(owner).fetch_all(pool).await?;
     Ok(rows.into_iter().map(row_into_task).collect())
 }
 

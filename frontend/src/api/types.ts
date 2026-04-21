@@ -244,7 +244,10 @@ export interface CalendarCategory extends CalendarCategoryRef {
 
 export interface ShoppingList {
   id: string;
-  group_id: string;
+  /** Present only for group-owned lists. */
+  group_id: string | null;
+  /** Present only for personal lists (visible only to this user). */
+  owner_user_id: string | null;
   name: string;
   /** Number of unchecked items on this list. */
   items_open: number;
@@ -256,7 +259,10 @@ export interface ShoppingList {
 
 export interface ShoppingItem {
   id: string;
-  group_id: string;
+  /** Present only for items on group-owned lists. */
+  group_id: string | null;
+  /** Present only for items on personal lists. */
+  owner_user_id: string | null;
   /** List this item belongs to. Every item has exactly one parent list. */
   list_id: string;
   name: string;
@@ -275,7 +281,10 @@ export type TaskPriority = "low" | "normal" | "high";
 
 export interface Task {
   id: string;
-  group_id: string;
+  /** Present only for group tasks (shared with the group). */
+  group_id: string | null;
+  /** Present only for personal tasks (visible only to this user). */
+  owner_user_id: string | null;
   title: string;
   description: string;
   priority: TaskPriority;

@@ -14,6 +14,36 @@ use crate::{
     state::AppState,
 };
 
+/// Owner axis for shopping rows. Lists and items either belong to a
+/// group (shared with every member) or to a single user (personal list,
+/// only visible to its owner). Membership/ownership is enforced
+/// centrally here so individual handlers stay small.
+#[derive(Debug, Clone, Copy)]
+pub enum Scope {
+    Group { group_id: Uuid, user_id: Uuid },
+    Personal { user_id: Uuid },
+}
+
+impl Scope {
+    pub fn acting_user(&self) -> Uuid {
+        match self {
+            Scope::Group { user_id, .. } | Scope::Personal { user_id } => *user_id,
+        }
+    }
+
+    pub async fn for_group(state: &AppState, group_id: Uuid, user: &AuthUser) -> AppResult<Self> {
+        crate::groups::ensure_member(state, group_id, user.id).await?;
+        Ok(Scope::Group {
+            group_id,
+            user_id: user.id,
+        })
+    }
+
+    pub fn for_personal(user: &AuthUser) -> Self {
+        Scope::Personal { user_id: user.id }
+    }
+}
+
 // -------------------------------------------------------------------------
 // Shopping lists
 // -------------------------------------------------------------------------
@@ -21,7 +51,8 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct ShoppingList {
     pub id: Uuid,
-    pub group_id: Uuid,
+    pub group_id: Option<Uuid>,
+    pub owner_user_id: Option<Uuid>,
     pub name: String,
     /// Number of unchecked items on this list. Precomputed so the UI can
     /// show a "3 open" badge in the dropdown without a second round-trip.
@@ -44,121 +75,190 @@ pub struct RenameListRequest {
     pub name: String,
 }
 
-pub async fn list_lists(
+// ---------- group-scoped list handlers ----------
+
+pub async fn list_group_lists(
     State(state): State<AppState>,
     user: AuthUser,
     Path(group_id): Path<Uuid>,
 ) -> AppResult<Json<Vec<ShoppingList>>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    Ok(Json(fetch_lists(&state.db, group_id).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    Ok(Json(fetch_lists(&state.db, scope).await?))
 }
 
-pub async fn create_list(
+pub async fn create_group_list(
     State(state): State<AppState>,
     user: AuthUser,
     Path(group_id): Path<Uuid>,
     Json(payload): Json<CreateListRequest>,
 ) -> AppResult<Json<ShoppingList>> {
-    payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-
-    let id: (Uuid,) = sqlx::query_as(
-        "INSERT INTO shopping_lists (group_id, name, created_by)
-         VALUES ($1, $2, $3)
-         RETURNING id",
-    )
-    .bind(group_id)
-    .bind(payload.name.trim())
-    .bind(user.id)
-    .fetch_one(&state.db)
-    .await?;
-
-    Ok(Json(fetch_list(&state.db, id.0).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    create_list(&state.db, scope, payload).await.map(Json)
 }
 
-pub async fn rename_list(
+pub async fn rename_group_list(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, list_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<RenameListRequest>,
 ) -> AppResult<Json<ShoppingList>> {
-    payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
-
-    sqlx::query("UPDATE shopping_lists SET name = $1 WHERE id = $2")
-        .bind(payload.name.trim())
-        .bind(list_id)
-        .execute(&state.db)
-        .await?;
-
-    Ok(Json(fetch_list(&state.db, list_id).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    rename_list(&state.db, scope, list_id, payload).await.map(Json)
 }
 
-pub async fn delete_list(
+pub async fn delete_group_list(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, list_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<ShoppingList>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    delete_list(&state.db, scope, list_id).await.map(Json)
+}
 
-    // Safeguard: never leave a group without a list. The frontend is
+// ---------- personal-scoped list handlers ----------
+
+pub async fn list_personal_lists(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Vec<ShoppingList>>> {
+    let scope = Scope::for_personal(&user);
+    Ok(Json(fetch_lists(&state.db, scope).await?))
+}
+
+pub async fn create_personal_list(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(payload): Json<CreateListRequest>,
+) -> AppResult<Json<ShoppingList>> {
+    let scope = Scope::for_personal(&user);
+    create_list(&state.db, scope, payload).await.map(Json)
+}
+
+pub async fn rename_personal_list(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(list_id): Path<Uuid>,
+    Json(payload): Json<RenameListRequest>,
+) -> AppResult<Json<ShoppingList>> {
+    let scope = Scope::for_personal(&user);
+    rename_list(&state.db, scope, list_id, payload).await.map(Json)
+}
+
+pub async fn delete_personal_list(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(list_id): Path<Uuid>,
+) -> AppResult<Json<ShoppingList>> {
+    let scope = Scope::for_personal(&user);
+    delete_list(&state.db, scope, list_id).await.map(Json)
+}
+
+// ---------- core list CRUD (scope-agnostic) ----------
+
+async fn create_list(
+    pool: &PgPool,
+    scope: Scope,
+    payload: CreateListRequest,
+) -> AppResult<ShoppingList> {
+    payload.validate()?;
+    let (group_id, owner_user_id) = split_scope(scope);
+
+    let id: (Uuid,) = sqlx::query_as(
+        "INSERT INTO shopping_lists (group_id, owner_user_id, name, created_by)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id",
+    )
+    .bind(group_id)
+    .bind(owner_user_id)
+    .bind(payload.name.trim())
+    .bind(scope.acting_user())
+    .fetch_one(pool)
+    .await?;
+
+    fetch_list(pool, id.0).await
+}
+
+async fn rename_list(
+    pool: &PgPool,
+    scope: Scope,
+    list_id: Uuid,
+    payload: RenameListRequest,
+) -> AppResult<ShoppingList> {
+    payload.validate()?;
+    ensure_list_in_scope(pool, list_id, scope).await?;
+
+    sqlx::query("UPDATE shopping_lists SET name = $1 WHERE id = $2")
+        .bind(payload.name.trim())
+        .bind(list_id)
+        .execute(pool)
+        .await?;
+
+    fetch_list(pool, list_id).await
+}
+
+async fn delete_list(pool: &PgPool, scope: Scope, list_id: Uuid) -> AppResult<ShoppingList> {
+    ensure_list_in_scope(pool, list_id, scope).await?;
+
+    // Safeguard: never leave a scope without a list. The frontend is
     // list-centric and would render a broken empty state otherwise. If
-    // we're deleting the last list, synthesise a fresh empty default in
-    // the same transaction so the UI always has something to switch to.
-    let mut tx = state.db.begin().await?;
+    // we're deleting the last list for this scope, synthesise a fresh
+    // empty default in the same transaction so the UI always has
+    // something to switch to.
+    let mut tx = pool.begin().await?;
 
     sqlx::query("DELETE FROM shopping_lists WHERE id = $1")
         .bind(list_id)
         .execute(&mut *tx)
         .await?;
 
-    let remaining: (i64,) =
-        sqlx::query_as("SELECT COUNT(*)::BIGINT FROM shopping_lists WHERE group_id = $1")
-            .bind(group_id)
-            .fetch_one(&mut *tx)
-            .await?;
+    let (scope_sql, owner) = scope_filter(scope, "sl", 1);
+    let count_sql = format!("SELECT COUNT(*)::BIGINT FROM shopping_lists sl WHERE {scope_sql}");
+    let remaining: (i64,) = sqlx::query_as(&count_sql)
+        .bind(owner)
+        .fetch_one(&mut *tx)
+        .await?;
 
     let fallback_id: Uuid = if remaining.0 == 0 {
+        let (group_id, owner_user_id) = split_scope(scope);
         let row: (Uuid,) = sqlx::query_as(
-            "INSERT INTO shopping_lists (group_id, name, created_by)
-             VALUES ($1, 'Einkaufsliste', $2)
+            "INSERT INTO shopping_lists (group_id, owner_user_id, name, created_by)
+             VALUES ($1, $2, 'Einkaufsliste', $3)
              RETURNING id",
         )
         .bind(group_id)
-        .bind(user.id)
+        .bind(owner_user_id)
+        .bind(scope.acting_user())
         .fetch_one(&mut *tx)
         .await?;
         row.0
     } else {
         // Any remaining list works as the follow-up selection; the
         // frontend will switch to whatever list_id comes back.
-        let row: (Uuid,) = sqlx::query_as(
-            "SELECT id FROM shopping_lists
-             WHERE group_id = $1
-             ORDER BY created_at ASC
-             LIMIT 1",
-        )
-        .bind(group_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let pick_sql = format!(
+            "SELECT sl.id FROM shopping_lists sl WHERE {scope_sql} \
+             ORDER BY sl.created_at ASC LIMIT 1",
+        );
+        let row: (Uuid,) = sqlx::query_as(&pick_sql)
+            .bind(owner)
+            .fetch_one(&mut *tx)
+            .await?;
         row.0
     };
 
     tx.commit().await?;
 
-    Ok(Json(fetch_list(&state.db, fallback_id).await?))
+    fetch_list(pool, fallback_id).await
 }
 
 // -------------------------------------------------------------------------
-// Shopping items (now scoped to a list)
+// Shopping items (scoped to a list)
 // -------------------------------------------------------------------------
 
 #[derive(Debug, Serialize)]
 pub struct ShoppingItem {
     pub id: Uuid,
-    pub group_id: Uuid,
+    pub group_id: Option<Uuid>,
+    pub owner_user_id: Option<Uuid>,
     pub list_id: Uuid,
     pub name: String,
     pub quantity: String,
@@ -201,53 +301,179 @@ pub struct ToggleRequest {
     pub done: Option<bool>,
 }
 
-pub async fn list_items(
+// ---------- group-scoped item handlers ----------
+
+pub async fn list_group_items(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, list_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<Vec<ShoppingItem>>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    ensure_list_in_scope(&state.db, list_id, scope).await?;
     Ok(Json(fetch_items(&state.db, list_id).await?))
 }
 
-pub async fn create_item(
+pub async fn create_group_item(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, list_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<CreateItemRequest>,
 ) -> AppResult<Json<ShoppingItem>> {
-    payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
-
-    let id: (Uuid,) = sqlx::query_as(
-        "INSERT INTO shopping_items (group_id, list_id, added_by, name, quantity, note)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id",
-    )
-    .bind(group_id)
-    .bind(list_id)
-    .bind(user.id)
-    .bind(payload.name.trim())
-    .bind(payload.quantity.trim())
-    .bind(payload.note.trim())
-    .fetch_one(&state.db)
-    .await?;
-
-    Ok(Json(fetch_item(&state.db, id.0).await?))
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    create_item(&state.db, scope, list_id, payload).await.map(Json)
 }
 
-pub async fn update_item(
+pub async fn update_group_item(
     State(state): State<AppState>,
     user: AuthUser,
     Path((group_id, list_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateItemRequest>,
 ) -> AppResult<Json<ShoppingItem>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    update_item(&state.db, scope, list_id, item_id, payload)
+        .await
+        .map(Json)
+}
+
+pub async fn toggle_group_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, list_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
+    Json(payload): Json<ToggleRequest>,
+) -> AppResult<Json<ShoppingItem>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    toggle_item(&state.db, scope, list_id, item_id, payload)
+        .await
+        .map(Json)
+}
+
+pub async fn delete_group_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, list_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    delete_item(&state.db, scope, list_id, item_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn clear_group_done(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((group_id, list_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_group(&state, group_id, &user).await?;
+    let removed = clear_done(&state.db, scope, list_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true, "removed": removed })))
+}
+
+// ---------- personal-scoped item handlers ----------
+
+pub async fn list_personal_items(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(list_id): Path<Uuid>,
+) -> AppResult<Json<Vec<ShoppingItem>>> {
+    let scope = Scope::for_personal(&user);
+    ensure_list_in_scope(&state.db, list_id, scope).await?;
+    Ok(Json(fetch_items(&state.db, list_id).await?))
+}
+
+pub async fn create_personal_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(list_id): Path<Uuid>,
+    Json(payload): Json<CreateItemRequest>,
+) -> AppResult<Json<ShoppingItem>> {
+    let scope = Scope::for_personal(&user);
+    create_item(&state.db, scope, list_id, payload).await.map(Json)
+}
+
+pub async fn update_personal_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((list_id, item_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<UpdateItemRequest>,
+) -> AppResult<Json<ShoppingItem>> {
+    let scope = Scope::for_personal(&user);
+    update_item(&state.db, scope, list_id, item_id, payload)
+        .await
+        .map(Json)
+}
+
+pub async fn toggle_personal_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((list_id, item_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<ToggleRequest>,
+) -> AppResult<Json<ShoppingItem>> {
+    let scope = Scope::for_personal(&user);
+    toggle_item(&state.db, scope, list_id, item_id, payload)
+        .await
+        .map(Json)
+}
+
+pub async fn delete_personal_item(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((list_id, item_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_personal(&user);
+    delete_item(&state.db, scope, list_id, item_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn clear_personal_done(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(list_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    let scope = Scope::for_personal(&user);
+    let removed = clear_done(&state.db, scope, list_id).await?;
+    Ok(Json(serde_json::json!({ "ok": true, "removed": removed })))
+}
+
+// ---------- core item CRUD (scope-agnostic) ----------
+
+async fn create_item(
+    pool: &PgPool,
+    scope: Scope,
+    list_id: Uuid,
+    payload: CreateItemRequest,
+) -> AppResult<ShoppingItem> {
     payload.validate()?;
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
-    ensure_item_in_list(&state.db, item_id, list_id).await?;
+    ensure_list_in_scope(pool, list_id, scope).await?;
+    let (group_id, owner_user_id) = split_scope(scope);
+
+    let id: (Uuid,) = sqlx::query_as(
+        "INSERT INTO shopping_items
+            (group_id, owner_user_id, list_id, added_by, name, quantity, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id",
+    )
+    .bind(group_id)
+    .bind(owner_user_id)
+    .bind(list_id)
+    .bind(scope.acting_user())
+    .bind(payload.name.trim())
+    .bind(payload.quantity.trim())
+    .bind(payload.note.trim())
+    .fetch_one(pool)
+    .await?;
+
+    fetch_item(pool, id.0).await
+}
+
+async fn update_item(
+    pool: &PgPool,
+    scope: Scope,
+    list_id: Uuid,
+    item_id: Uuid,
+    payload: UpdateItemRequest,
+) -> AppResult<ShoppingItem> {
+    payload.validate()?;
+    ensure_list_in_scope(pool, list_id, scope).await?;
+    ensure_item_in_list(pool, item_id, list_id).await?;
 
     sqlx::query(
         "UPDATE shopping_items
@@ -260,26 +486,26 @@ pub async fn update_item(
     .bind(payload.quantity.as_deref().map(str::trim))
     .bind(payload.note.as_deref().map(str::trim))
     .bind(item_id)
-    .execute(&state.db)
+    .execute(pool)
     .await?;
 
-    Ok(Json(fetch_item(&state.db, item_id).await?))
+    fetch_item(pool, item_id).await
 }
 
-pub async fn toggle_item(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path((group_id, list_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
-    Json(payload): Json<ToggleRequest>,
-) -> AppResult<Json<ShoppingItem>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
+async fn toggle_item(
+    pool: &PgPool,
+    scope: Scope,
+    list_id: Uuid,
+    item_id: Uuid,
+    payload: ToggleRequest,
+) -> AppResult<ShoppingItem> {
+    ensure_list_in_scope(pool, list_id, scope).await?;
 
     let current: Option<(bool,)> =
         sqlx::query_as("SELECT is_done FROM shopping_items WHERE id = $1 AND list_id = $2")
             .bind(item_id)
             .bind(list_id)
-            .fetch_optional(&state.db)
+            .fetch_optional(pool)
             .await?;
     let Some((was_done,)) = current else {
         return Err(AppError::NotFound("item not found".into()));
@@ -293,9 +519,9 @@ pub async fn toggle_item(
              SET is_done = TRUE, done_at = NOW(), done_by = $1
              WHERE id = $2",
         )
-        .bind(user.id)
+        .bind(scope.acting_user())
         .bind(item_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
     } else {
         sqlx::query(
@@ -304,61 +530,58 @@ pub async fn toggle_item(
              WHERE id = $1",
         )
         .bind(item_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
     }
 
-    Ok(Json(fetch_item(&state.db, item_id).await?))
+    fetch_item(pool, item_id).await
 }
 
-pub async fn delete_item(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path((group_id, list_id, item_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> AppResult<Json<serde_json::Value>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
-    ensure_item_in_list(&state.db, item_id, list_id).await?;
+async fn delete_item(
+    pool: &PgPool,
+    scope: Scope,
+    list_id: Uuid,
+    item_id: Uuid,
+) -> AppResult<()> {
+    ensure_list_in_scope(pool, list_id, scope).await?;
+    ensure_item_in_list(pool, item_id, list_id).await?;
     sqlx::query("DELETE FROM shopping_items WHERE id = $1")
         .bind(item_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
-    Ok(Json(serde_json::json!({ "ok": true })))
+    Ok(())
 }
 
-pub async fn clear_done(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path((group_id, list_id)): Path<(Uuid, Uuid)>,
-) -> AppResult<Json<serde_json::Value>> {
-    crate::groups::ensure_member(&state, group_id, user.id).await?;
-    ensure_list_in_group(&state.db, list_id, group_id).await?;
+async fn clear_done(pool: &PgPool, scope: Scope, list_id: Uuid) -> AppResult<u64> {
+    ensure_list_in_scope(pool, list_id, scope).await?;
     let res = sqlx::query("DELETE FROM shopping_items WHERE list_id = $1 AND is_done = TRUE")
         .bind(list_id)
-        .execute(&state.db)
+        .execute(pool)
         .await?;
-    Ok(Json(
-        serde_json::json!({ "ok": true, "removed": res.rows_affected() }),
-    ))
+    Ok(res.rows_affected())
 }
 
 // -------------------------------------------------------------------------
 // helpers
 // -------------------------------------------------------------------------
 
-/// Verify that the given list belongs to the given group. Pairs with
-/// `ensure_member` to block cross-group access via guessed IDs.
-pub async fn ensure_list_in_group(
+/// Verify the list belongs to the given scope. Replaces the old
+/// `ensure_list_in_group` check; for personal scope it matches
+/// `owner_user_id`, for group scope it matches `group_id`.
+pub async fn ensure_list_in_scope(
     pool: &PgPool,
     list_id: Uuid,
-    group_id: Uuid,
+    scope: Scope,
 ) -> AppResult<()> {
-    let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM shopping_lists WHERE id = $1 AND group_id = $2")
-            .bind(list_id)
-            .bind(group_id)
-            .fetch_optional(pool)
-            .await?;
+    let (scope_sql, owner) = scope_filter(scope, "sl", 2);
+    let sql = format!(
+        "SELECT sl.id FROM shopping_lists sl WHERE sl.id = $1 AND {scope_sql}",
+    );
+    let exists: Option<(Uuid,)> = sqlx::query_as(&sql)
+        .bind(list_id)
+        .bind(owner)
+        .fetch_optional(pool)
+        .await?;
     if exists.is_none() {
         return Err(AppError::NotFound("shopping list not found".into()));
     }
@@ -378,10 +601,43 @@ async fn ensure_item_in_list(pool: &PgPool, item_id: Uuid, list_id: Uuid) -> App
     Ok(())
 }
 
-type ListRow = (Uuid, Uuid, String, i64, i64, Uuid, DateTime<Utc>);
+fn split_scope(scope: Scope) -> (Option<Uuid>, Option<Uuid>) {
+    match scope {
+        Scope::Group { group_id, .. } => (Some(group_id), None),
+        Scope::Personal { user_id } => (None, Some(user_id)),
+    }
+}
+
+/// Returns the WHERE fragment identifying this scope's rows (already
+/// qualified with the caller's table alias), plus the matching UUID
+/// bind. `placeholder` is the positional index the caller will bind
+/// this value at (varies between helpers - e.g. `$1` for list queries
+/// that only carry the owner, `$2` for lookups that match a primary
+/// key first).
+fn scope_filter(scope: Scope, alias: &str, placeholder: u32) -> (String, Uuid) {
+    match scope {
+        Scope::Group { group_id, .. } => {
+            (format!("{alias}.group_id = ${placeholder}"), group_id)
+        }
+        Scope::Personal { user_id } => {
+            (format!("{alias}.owner_user_id = ${placeholder}"), user_id)
+        }
+    }
+}
+
+type ListRow = (
+    Uuid,
+    Option<Uuid>,
+    Option<Uuid>,
+    String,
+    i64,
+    i64,
+    Uuid,
+    DateTime<Utc>,
+);
 
 const LIST_SELECT: &str = "\
-    SELECT sl.id, sl.group_id, sl.name, \
+    SELECT sl.id, sl.group_id, sl.owner_user_id, sl.name, \
            COALESCE((SELECT COUNT(*) FROM shopping_items si \
                      WHERE si.list_id = sl.id AND si.is_done = FALSE), 0)::BIGINT AS items_open, \
            COALESCE((SELECT COUNT(*) FROM shopping_items si \
@@ -393,20 +649,19 @@ fn row_into_list(row: ListRow) -> ShoppingList {
     ShoppingList {
         id: row.0,
         group_id: row.1,
-        name: row.2,
-        items_open: row.3,
-        items_done: row.4,
-        created_by: row.5,
-        created_at: row.6,
+        owner_user_id: row.2,
+        name: row.3,
+        items_open: row.4,
+        items_done: row.5,
+        created_by: row.6,
+        created_at: row.7,
     }
 }
 
-async fn fetch_lists(pool: &PgPool, group_id: Uuid) -> AppResult<Vec<ShoppingList>> {
-    let sql = format!(
-        "{LIST_SELECT} WHERE sl.group_id = $1 \
-         ORDER BY sl.created_at ASC"
-    );
-    let rows: Vec<ListRow> = sqlx::query_as(&sql).bind(group_id).fetch_all(pool).await?;
+async fn fetch_lists(pool: &PgPool, scope: Scope) -> AppResult<Vec<ShoppingList>> {
+    let (scope_sql, owner) = scope_filter(scope, "sl", 1);
+    let sql = format!("{LIST_SELECT} WHERE {scope_sql} ORDER BY sl.created_at ASC");
+    let rows: Vec<ListRow> = sqlx::query_as(&sql).bind(owner).fetch_all(pool).await?;
     Ok(rows.into_iter().map(row_into_list).collect())
 }
 
@@ -418,7 +673,8 @@ async fn fetch_list(pool: &PgPool, id: Uuid) -> AppResult<ShoppingList> {
 
 type ItemRow = (
     Uuid,
-    Uuid,
+    Option<Uuid>,
+    Option<Uuid>,
     Uuid,
     String,
     String,
@@ -433,7 +689,7 @@ type ItemRow = (
 );
 
 const ITEM_SELECT: &str = "\
-    SELECT si.id, si.group_id, si.list_id, si.name, si.quantity, si.note, \
+    SELECT si.id, si.group_id, si.owner_user_id, si.list_id, si.name, si.quantity, si.note, \
            si.is_done, si.done_at, si.done_by, du.display_name AS done_by_display_name, \
            si.added_by, au.display_name AS added_by_display_name, si.created_at \
     FROM shopping_items si \
@@ -444,17 +700,18 @@ fn row_into_item(row: ItemRow) -> ShoppingItem {
     ShoppingItem {
         id: row.0,
         group_id: row.1,
-        list_id: row.2,
-        name: row.3,
-        quantity: row.4,
-        note: row.5,
-        is_done: row.6,
-        done_at: row.7,
-        done_by: row.8,
-        done_by_display_name: row.9,
-        added_by: row.10,
-        added_by_display_name: row.11,
-        created_at: row.12,
+        owner_user_id: row.2,
+        list_id: row.3,
+        name: row.4,
+        quantity: row.5,
+        note: row.6,
+        is_done: row.7,
+        done_at: row.8,
+        done_by: row.9,
+        done_by_display_name: row.10,
+        added_by: row.11,
+        added_by_display_name: row.12,
+        created_at: row.13,
     }
 }
 

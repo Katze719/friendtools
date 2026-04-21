@@ -13,6 +13,9 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import PendingApproval from "./pages/PendingApproval";
 import PersonalCalendar from "./pages/PersonalCalendar";
+import PersonalShopping from "./pages/PersonalShopping";
+import PersonalShoppingList from "./pages/PersonalShoppingList";
+import PersonalTasks from "./pages/PersonalTasks";
 import Register from "./pages/Register";
 import { tools } from "./tools";
 
@@ -51,6 +54,12 @@ export default function App() {
                   }),
                 )}
                 <Route path="/me/calendar" element={<PersonalCalendar />} />
+                <Route path="/me/shopping" element={<PersonalShopping />} />
+                <Route
+                  path="/me/shopping/:listId"
+                  element={<PersonalShoppingList />}
+                />
+                <Route path="/me/tasks" element={<PersonalTasks />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

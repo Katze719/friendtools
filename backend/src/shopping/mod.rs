@@ -17,26 +17,57 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/lists",
-            get(handlers::list_lists).post(handlers::create_list),
+            get(handlers::list_group_lists).post(handlers::create_group_list),
         )
         .route(
             "/lists/:list_id",
-            patch(handlers::rename_list).delete(handlers::delete_list),
+            patch(handlers::rename_group_list).delete(handlers::delete_group_list),
         )
         .route(
             "/lists/:list_id/items",
-            get(handlers::list_items).post(handlers::create_item),
+            get(handlers::list_group_items).post(handlers::create_group_item),
         )
         .route(
             "/lists/:list_id/items/:item_id",
-            patch(handlers::update_item).delete(handlers::delete_item),
+            patch(handlers::update_group_item).delete(handlers::delete_group_item),
         )
         .route(
             "/lists/:list_id/items/:item_id/toggle",
-            put(handlers::toggle_item),
+            put(handlers::toggle_group_item),
         )
         .route(
             "/lists/:list_id/items/clear-done",
-            post(handlers::clear_done),
+            post(handlers::clear_group_done),
+        )
+}
+
+/// Mounted under `/api/me/shopping/...`. Personal-scoped routes - lists
+/// and items owned by the authenticated user, never shared with any
+/// group.
+pub fn personal_routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/lists",
+            get(handlers::list_personal_lists).post(handlers::create_personal_list),
+        )
+        .route(
+            "/lists/:list_id",
+            patch(handlers::rename_personal_list).delete(handlers::delete_personal_list),
+        )
+        .route(
+            "/lists/:list_id/items",
+            get(handlers::list_personal_items).post(handlers::create_personal_item),
+        )
+        .route(
+            "/lists/:list_id/items/:item_id",
+            patch(handlers::update_personal_item).delete(handlers::delete_personal_item),
+        )
+        .route(
+            "/lists/:list_id/items/:item_id/toggle",
+            put(handlers::toggle_personal_item),
+        )
+        .route(
+            "/lists/:list_id/items/clear-done",
+            post(handlers::clear_personal_done),
         )
 }
