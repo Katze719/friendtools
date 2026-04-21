@@ -81,6 +81,22 @@ export function Reveal({
   children,
 }: RevealProps) {
   const [ref, inView] = useInView<HTMLDivElement>({ threshold, once });
+  // Only promote to its own layer while the enter animation is actually
+  // pending / running. Keeping `will-change: transform` on every Reveal for
+  // the lifetime of the page explodes the compositor layer tree (see MDN:
+  // "Do not apply will-change to too many elements" / "remove it when it's
+  // no longer needed"). We drop the hint shortly after the reveal fires.
+  const [animating, setAnimating] = useState(!inView);
+
+  useEffect(() => {
+    if (!inView) {
+      setAnimating(true);
+      return;
+    }
+    const totalMs = durationMs + delayMs + 50;
+    const handle = window.setTimeout(() => setAnimating(false), totalMs);
+    return () => window.clearTimeout(handle);
+  }, [inView, durationMs, delayMs]);
 
   const hiddenTransform =
     direction === "left"
@@ -92,7 +108,7 @@ export function Reveal({
           : "translate-y-4";
 
   const base =
-    "transition-all ease-out will-change-transform " +
+    "transition-all ease-out " +
     "motion-reduce:transition-none motion-reduce:transform-none motion-reduce:opacity-100";
   const state = inView
     ? "opacity-100 translate-x-0 translate-y-0"
@@ -105,6 +121,7 @@ export function Reveal({
       style={{
         transitionDuration: `${durationMs}ms`,
         transitionDelay: `${delayMs}ms`,
+        willChange: animating ? "transform, opacity" : undefined,
       }}
     >
       {children}

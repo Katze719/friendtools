@@ -17,7 +17,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import InstallAppButton from "../components/InstallAppButton";
@@ -98,7 +98,12 @@ function BackgroundDecor() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px] overflow-hidden"
       >
-        <div className="absolute -top-32 left-1/2 h-[640px] w-[1100px] -translate-x-1/2 rounded-full bg-gradient-to-br from-brand-400/30 via-sky-300/20 to-fuchsia-300/20 blur-3xl motion-safe:animate-drift-blob dark:from-brand-500/25 dark:via-sky-500/15 dark:to-fuchsia-500/10" />
+        {/* Large decorative gradient behind the hero. Kept static on purpose:
+            animating a 1100x640 `blur-3xl` layer forces the browser to
+            re-rasterize the blur buffer on every frame, which was a major
+            source of scroll/paint jank. The smaller floating icons and the
+            HeroMock bob still provide ambient motion. */}
+        <div className="absolute -top-32 left-1/2 h-[640px] w-[1100px] -translate-x-1/2 rounded-full bg-gradient-to-br from-brand-400/30 via-sky-300/20 to-fuchsia-300/20 blur-3xl dark:from-brand-500/25 dark:via-sky-500/15 dark:to-fuchsia-500/10" />
       </div>
       <div
         aria-hidden="true"
@@ -163,30 +168,49 @@ function FloatingAmbientIcons() {
   );
 }
 
+/**
+ * Scroll progress bar. Reads layout on every native scroll event but writes
+ * the result straight to a CSS variable via rAF - so React never re-renders
+ * while scrolling and the DOM is touched at most once per animation frame.
+ */
 function ScrollProgress() {
-  const [progress, setProgress] = useState(0);
+  const barRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    const onScroll = () => {
+    const bar = barRef.current;
+    if (!bar) return;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
       const el = document.documentElement;
       const total = el.scrollHeight - el.clientHeight;
-      setProgress(total > 0 ? Math.min(1, Math.max(0, el.scrollTop / total)) : 0);
+      const p = total > 0 ? Math.min(1, Math.max(0, el.scrollTop / total)) : 0;
+      bar.style.transform = `scaleX(${p})`;
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    const schedule = () => {
+      if (frame !== 0) return;
+      frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
     };
   }, []);
+
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-x-0 top-0 z-30 h-0.5"
     >
       <div
-        className="h-full origin-left bg-gradient-to-r from-brand-500 via-sky-500 to-fuchsia-500 transition-transform duration-150 ease-out motion-reduce:transition-none"
-        style={{ transform: `scaleX(${progress})` }}
+        ref={barRef}
+        className="h-full origin-left scale-x-0 bg-gradient-to-r from-brand-500 via-sky-500 to-fuchsia-500 will-change-transform"
       />
     </div>
   );
