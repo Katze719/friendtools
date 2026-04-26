@@ -868,7 +868,7 @@ function LinkCard({
             </label>
             <select
               id={`folder-select-${link.id}`}
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 dark:border-slate-700 dark:bg-slate-900"
+              className="input-compact max-w-[10rem]"
               value={link.folder_id ?? ""}
               disabled={busy === "move"}
               onChange={(e) => onMove(e.target.value === "" ? null : e.target.value)}
@@ -1200,11 +1200,7 @@ function AddLinkForm({
           />
         </div>
       </div>
-      {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </p>
-      )}
+      {error && <p className="alert-error">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost" onClick={() => onDone(false)}>
           {t("common.cancel")}
@@ -1265,11 +1261,7 @@ function AddFolderForm({
           autoFocus
         />
       </div>
-      {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </p>
-      )}
+      {error && <p className="alert-error">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost" onClick={() => onDone(false)}>
           {t("common.cancel")}

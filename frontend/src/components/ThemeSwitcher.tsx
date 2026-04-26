@@ -18,7 +18,7 @@ export default function ThemeSwitcher() {
       role="group"
       aria-label={t("theme.aria")}
     >
-      <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-900">
+      <div className="segmented">
         {OPTIONS.map(({ value, icon: Icon, labelKey }) => {
           const active = preference === value;
           return (
@@ -29,10 +29,8 @@ export default function ThemeSwitcher() {
               aria-pressed={active}
               title={t(labelKey)}
               aria-label={t(labelKey)}
-              className={`inline-flex items-center px-2 py-1 transition ${
-                active
-                  ? "bg-brand-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              className={`segmented-item-compact ${
+                active ? "segmented-item-active" : "segmented-item-idle"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />

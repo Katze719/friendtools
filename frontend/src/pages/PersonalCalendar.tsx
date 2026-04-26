@@ -80,11 +80,7 @@ export default function PersonalCalendarPage() {
   }, [reload]);
 
   if (error && !events) {
-    return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p className="alert-error">{error}</p>;
   }
   if (!events) {
     return <LoadingState />;
@@ -97,7 +93,10 @@ export default function PersonalCalendarPage() {
       scope={{ kind: "personal" }}
       title={t("calendar.overview.personalTitle")}
       subtitle={t("calendar.overview.personalSubtitle")}
-      backLink={null}
+      backLink={{
+        to: "/",
+        label: t("layout.backToDashboard"),
+      }}
       events={events}
       categories={categories}
       groupsById={groupsById}

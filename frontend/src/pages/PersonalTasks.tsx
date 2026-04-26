@@ -6,6 +6,7 @@ import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
 import type { GroupSummary, Task } from "../api/types";
 import LoadingState from "../components/LoadingState";
+import PageHeader from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { personalTasksApi, tasksApi } from "../tools/tasks/api";
 import {
@@ -220,11 +221,7 @@ export default function PersonalTasksPage() {
   }
 
   if (error && !personalTasks) {
-    return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p className="alert-error">{error}</p>;
   }
   if (!personalTasks) {
     return <LoadingState />;
@@ -234,24 +231,21 @@ export default function PersonalTasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("tasks.personal.title")}
-          </h1>
-          <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-            {t("tasks.personal.subtitle")}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => setShowAdd((v) => !v)}
-        >
-          <Plus className="h-4 w-4" />
-          {t("tasks.overview.add")}
-        </button>
-      </div>
+      <PageHeader
+        backLink={{ to: "/", label: t("layout.backToDashboard") }}
+        title={t("tasks.personal.title")}
+        subtitle={t("tasks.personal.subtitle")}
+        actions={
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setShowAdd((v) => !v)}
+          >
+            <Plus className="h-4 w-4" />
+            {t("tasks.overview.add")}
+          </button>
+        }
+      />
 
       <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
         <input

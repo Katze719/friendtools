@@ -1,11 +1,11 @@
-import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Trip } from "../../api/types";
 import LoadingState from "../../components/LoadingState";
+import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { formatMoney, parseAmountToCents } from "../../lib/format";
 import { tripsApi } from "../trips/api";
@@ -176,26 +176,24 @@ export default function SplitwiseNewExpensePage() {
 
   if (error && !group) {
     return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+      <p className="alert-error">{error}</p>
     );
   }
   if (!group || loading) return <LoadingState />;
 
   return (
     <div className="space-y-5">
-      <div>
-        <Link
-          to={`/groups/${group.id}/splitwise`}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("splitwise.newExpense.back")}
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {isEditing
+      <PageHeader
+        backLink={{
+          to: `/groups/${group.id}/splitwise`,
+          label: t("splitwise.newExpense.back"),
+        }}
+        title={
+          isEditing
             ? t("splitwise.newExpense.editTitle")
-            : t("splitwise.newExpense.title")}
-        </h1>
-      </div>
+            : t("splitwise.newExpense.title")
+        }
+      />
 
       <form onSubmit={submit} className="card space-y-5 p-5">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -275,17 +273,17 @@ export default function SplitwiseNewExpensePage() {
         <div>
           <div className="flex items-center justify-between">
             <span className="label">{t("splitwise.newExpense.split")}</span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs dark:border-slate-700 dark:bg-slate-900">
+            <div className="segmented">
               <button
                 type="button"
-                className={`rounded px-2.5 py-1 ${mode === "equal" ? "bg-brand-600 text-white" : "text-slate-600 dark:text-slate-300"}`}
+                className={`segmented-item ${mode === "equal" ? "segmented-item-active" : "segmented-item-idle"}`}
                 onClick={() => setMode("equal")}
               >
                 {t("splitwise.newExpense.modeEqual")}
               </button>
               <button
                 type="button"
-                className={`rounded px-2.5 py-1 ${mode === "exact" ? "bg-brand-600 text-white" : "text-slate-600 dark:text-slate-300"}`}
+                className={`segmented-item ${mode === "exact" ? "segmented-item-active" : "segmented-item-idle"}`}
                 onClick={() => setMode("exact")}
               >
                 {t("splitwise.newExpense.modeExact")}
@@ -368,7 +366,7 @@ export default function SplitwiseNewExpensePage() {
         </div>
 
         {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+          <p className="alert-error">{error}</p>
         )}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

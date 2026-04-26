@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   CalendarClock,
   CalendarDays,
   ChevronLeft,
@@ -28,6 +27,7 @@ import type {
   TripItineraryItem,
 } from "../../api/types";
 import MonthCalendar, { type DayBadge } from "../../components/MonthCalendar";
+import PageHeader from "../../components/PageHeader";
 import {
   addDays,
   formatDayLong,
@@ -275,26 +275,11 @@ export default function CalendarView({
 
   return (
     <div className="space-y-6">
-      <div>
-        {backLink && (
-          <Link
-            to={backLink.to}
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            <ArrowLeft className="h-4 w-4" /> {backLink.label}
-          </Link>
-        )}
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                {subtitle}
-              </p>
-            )}
-          </div>
+      <PageHeader
+        backLink={backLink ?? undefined}
+        title={title}
+        subtitle={subtitle ?? undefined}
+        actions={
           <button
             className="btn-primary w-full sm:w-auto"
             onClick={() => {
@@ -306,8 +291,8 @@ export default function CalendarView({
           >
             <Plus className="h-4 w-4" /> {t("calendar.overview.add")}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Category chips + manager */}
       <div className="flex flex-wrap items-center gap-2">
@@ -347,7 +332,7 @@ export default function CalendarView({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs dark:border-slate-700 dark:bg-slate-900">
+        <div className="segmented" role="tablist" aria-label={t("calendar.overview.viewAria")}>
           <ViewTab
             active={view === "agenda"}
             label={t("calendar.overview.viewAgenda")}
@@ -773,11 +758,7 @@ function ViewTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded px-2.5 py-1 ${
-        active
-          ? "bg-brand-600 text-white"
-          : "text-slate-600 dark:text-slate-300"
-      }`}
+      className={`segmented-item ${active ? "segmented-item-active" : "segmented-item-idle"}`}
     >
       {label}
     </button>
@@ -1649,7 +1630,7 @@ function EventForm({
       </div>
 
       {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+        <p className="alert-error">
           {error}
         </p>
       )}

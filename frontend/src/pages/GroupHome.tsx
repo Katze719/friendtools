@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   ArrowRight,
   Copy,
   Link2,
@@ -19,6 +18,7 @@ import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
 import type { GroupDetail } from "../api/types";
 import LoadingState from "../components/LoadingState";
+import PageHeader from "../components/PageHeader";
 import { formatDate } from "../lib/format";
 import { toolPath, tools } from "../tools";
 import { useFavoriteTools } from "../tools/useFavoriteTools";
@@ -176,7 +176,7 @@ export default function GroupHome() {
   }
 
   if (error && !group) {
-    return <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>;
+    return <p className="alert-error">{error}</p>;
   }
   if (!group) return <LoadingState />;
 
@@ -184,20 +184,11 @@ export default function GroupHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("group.backToGroups")}
-        </Link>
-        <h1 className="mt-1 break-words text-2xl font-semibold tracking-tight sm:text-3xl">
-          {group.name}
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {t("group.members", { count: group.members.length })} - {group.currency}
-        </p>
-      </div>
+      <PageHeader
+        backLink={{ to: "/", label: t("group.backToGroups") }}
+        title={group.name}
+        subtitle={`${t("group.members", { count: group.members.length })} - ${group.currency}`}
+      />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">{t("group.tools")}</h2>
@@ -363,7 +354,7 @@ export default function GroupHome() {
                   </button>
                 </div>
                 {showQr && (
-                  <div className="mt-3 flex flex-col items-center gap-2 rounded-xl bg-white p-4 dark:bg-slate-100">
+                  <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                     <QRCodeSVG
                       value={inviteUrl}
                       size={192}
@@ -372,7 +363,7 @@ export default function GroupHome() {
                       bgColor="#ffffff"
                       fgColor="#0f172a"
                     />
-                    <p className="text-center text-xs text-slate-600">
+                    <p className="text-center text-xs text-slate-600 dark:text-slate-400">
                       {t("group.qrHint")}
                     </p>
                   </div>

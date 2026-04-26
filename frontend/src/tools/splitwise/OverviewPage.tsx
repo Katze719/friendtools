@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   ArrowRight,
   HandCoins,
   List as ListIcon,
@@ -10,7 +9,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type {
@@ -21,6 +20,7 @@ import type {
   SplitwiseSummary,
 } from "../../api/types";
 import LoadingState from "../../components/LoadingState";
+import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { useConfirm, useToast } from "../../ui/UIProvider";
@@ -94,7 +94,7 @@ export default function SplitwiseOverviewPage() {
   }, [expenses, payments]);
 
   if (error && !group) {
-    return <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>;
+    return <p className="alert-error">{error}</p>;
   }
   if (!group || !summary || !expenses || !payments) return <LoadingState />;
 
@@ -144,22 +144,14 @@ export default function SplitwiseOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          to={`/groups/${group.id}`}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("splitwise.overview.backToGroup")}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {t("splitwise.overview.title")}
-            </h1>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-              {group.name} - {t("splitwise.overview.members", { count: group.members.length })}
-            </p>
-          </div>
+      <PageHeader
+        backLink={{
+          to: `/groups/${group.id}`,
+          label: t("splitwise.overview.backToGroup"),
+        }}
+        title={t("splitwise.overview.title")}
+        subtitle={`${group.name} - ${t("splitwise.overview.members", { count: group.members.length })}`}
+        actions={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <button
               className="btn-secondary"
@@ -178,8 +170,8 @@ export default function SplitwiseOverviewPage() {
               {t("splitwise.overview.addExpense")}
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card p-5 md:col-span-1">
@@ -240,19 +232,15 @@ export default function SplitwiseOverviewPage() {
               {t("splitwise.overview.settlementsTitle")}
             </h3>
             {hasSettlements && (
-              <div
-                className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
-                role="tablist"
-                aria-label={t("splitwise.overview.viewAria")}
-              >
+              <div className="segmented" role="tablist" aria-label={t("splitwise.overview.viewAria")}>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={settlementView === "list"}
-                  className={`inline-flex items-center gap-1 rounded px-2.5 py-1 ${
+                  className={`segmented-item inline-flex items-center gap-1 ${
                     settlementView === "list"
-                      ? "bg-brand-600 text-white"
-                      : "text-slate-600 dark:text-slate-300"
+                      ? "segmented-item-active"
+                      : "segmented-item-idle"
                   }`}
                   onClick={() => setSettlementView("list")}
                 >
@@ -263,10 +251,10 @@ export default function SplitwiseOverviewPage() {
                   type="button"
                   role="tab"
                   aria-selected={settlementView === "graph"}
-                  className={`inline-flex items-center gap-1 rounded px-2.5 py-1 ${
+                  className={`segmented-item inline-flex items-center gap-1 ${
                     settlementView === "graph"
-                      ? "bg-brand-600 text-white"
-                      : "text-slate-600 dark:text-slate-300"
+                      ? "segmented-item-active"
+                      : "segmented-item-idle"
                   }`}
                   onClick={() => setSettlementView("graph")}
                 >
@@ -279,7 +267,7 @@ export default function SplitwiseOverviewPage() {
 
           {hasSettlements && (
             <div
-              className="mt-2 inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+              className="segmented mt-2"
               role="tablist"
               aria-label={t("splitwise.overview.modeAria")}
             >
@@ -287,10 +275,10 @@ export default function SplitwiseOverviewPage() {
                 type="button"
                 role="tab"
                 aria-selected={settlementMode === "simplified"}
-                className={`rounded px-2.5 py-1 ${
+                className={`segmented-item ${
                   settlementMode === "simplified"
-                    ? "bg-brand-600 text-white"
-                    : "text-slate-600 dark:text-slate-300"
+                    ? "segmented-item-active"
+                    : "segmented-item-idle"
                 }`}
                 onClick={() => setSettlementMode("simplified")}
                 title={t("splitwise.overview.modeSimplifiedHint")}
@@ -301,10 +289,10 @@ export default function SplitwiseOverviewPage() {
                 type="button"
                 role="tab"
                 aria-selected={settlementMode === "direct"}
-                className={`rounded px-2.5 py-1 ${
+                className={`segmented-item ${
                   settlementMode === "direct"
-                    ? "bg-brand-600 text-white"
-                    : "text-slate-600 dark:text-slate-300"
+                    ? "segmented-item-active"
+                    : "segmented-item-idle"
                 }`}
                 onClick={() => setSettlementMode("direct")}
                 title={t("splitwise.overview.modeDirectHint")}

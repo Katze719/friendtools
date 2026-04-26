@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   CheckCircle2,
   ListChecks,
   Plus,
@@ -13,6 +12,7 @@ import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, ShoppingList } from "../../api/types";
 import LoadingState from "../../components/LoadingState";
+import PageHeader from "../../components/PageHeader";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { shoppingListsApi } from "./api";
 
@@ -67,11 +67,7 @@ export default function ShoppingListsPage() {
   }
 
   if (error && !group) {
-    return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p className="alert-error">{error}</p>;
   }
   if (!group || !lists) {
     return <LoadingState />;
@@ -79,22 +75,14 @@ export default function ShoppingListsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          to={`/groups/${group.id}`}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("shopping.lists.backToGroup")}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {t("shopping.lists.title")}
-            </h1>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-              {group.name} - {t("shopping.lists.subtitle")}
-            </p>
-          </div>
+      <PageHeader
+        backLink={{
+          to: `/groups/${group.id}`,
+          label: t("shopping.lists.backToGroup"),
+        }}
+        title={t("shopping.lists.title")}
+        subtitle={`${group.name} - ${t("shopping.lists.subtitle")}`}
+        actions={
           <button
             className="btn-primary w-full sm:w-auto"
             onClick={() => setShowForm((v) => !v)}
@@ -102,8 +90,8 @@ export default function ShoppingListsPage() {
           >
             <Plus className="h-4 w-4" /> {t("shopping.lists.newList")}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {showForm && (
         <NewListForm

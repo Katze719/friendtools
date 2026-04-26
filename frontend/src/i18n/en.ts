@@ -39,6 +39,7 @@ const en = {
     personalShopping: "My shopping",
     personalTasks: "My tasks",
     dashboard: "Dashboard",
+    backToDashboard: "Back to overview",
     footer: "friendflow - self-hosted for you and your people",
   },
   notFound: {
@@ -926,6 +927,7 @@ const en = {
       viewAgenda: "Agenda",
       viewMonth: "Month",
       viewDay: "Day",
+      viewAria: "Calendar layout",
       prevDay: "Previous day",
       nextDay: "Next day",
       dayTitle: "Events on {{date}}",

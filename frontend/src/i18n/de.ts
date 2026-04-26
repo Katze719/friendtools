@@ -41,6 +41,7 @@ const de: Translations = {
     personalShopping: "Mein Einkauf",
     personalTasks: "Meine Aufgaben",
     dashboard: "Übersicht",
+    backToDashboard: "Zur Übersicht",
     footer: "friendflow - selbst gehostet für dich und deine Leute",
   },
   notFound: {
@@ -931,6 +932,7 @@ const de: Translations = {
       viewAgenda: "Agenda",
       viewMonth: "Monat",
       viewDay: "Tag",
+      viewAria: "Kalenderdarstellung",
       prevDay: "Vorheriger Tag",
       nextDay: "Nächster Tag",
       dayTitle: "Termine am {{date}}",

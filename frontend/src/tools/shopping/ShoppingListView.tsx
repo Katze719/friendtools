@@ -593,7 +593,7 @@ function AddItemForm({
         <Plus className="h-4 w-4" /> {t("shopping.overview.add")}
       </button>
       {error && (
-        <p className="basis-full rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+        <p className="alert-error basis-full">
           {error}
         </p>
       )}

@@ -105,7 +105,7 @@ export default function AdminUsers() {
       </div>
 
       {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+        <p className="alert-error">{error}</p>
       )}
 
       {users !== null && users.length > 0 && (

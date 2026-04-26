@@ -13,6 +13,7 @@ import { ApiError } from "../api/client";
 import { groupsApi } from "../api/groups";
 import type { GroupSummary, ShoppingList } from "../api/types";
 import LoadingState from "../components/LoadingState";
+import PageHeader from "../components/PageHeader";
 import {
   personalShoppingListsApi,
   shoppingListsApi,
@@ -112,11 +113,7 @@ export default function PersonalShoppingPage() {
   }
 
   if (error && !lists) {
-    return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p className="alert-error">{error}</p>;
   }
   if (!lists) {
     return <LoadingState />;
@@ -124,23 +121,20 @@ export default function PersonalShoppingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("shopping.personal.title")}
-          </h1>
-          <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-            {t("shopping.personal.subtitle")}
-          </p>
-        </div>
-        <button
-          className="btn-primary w-full sm:w-auto"
-          onClick={() => setShowForm((v) => !v)}
-          aria-expanded={showForm}
-        >
-          <Plus className="h-4 w-4" /> {t("shopping.lists.newList")}
-        </button>
-      </div>
+      <PageHeader
+        backLink={{ to: "/", label: t("layout.backToDashboard") }}
+        title={t("shopping.personal.title")}
+        subtitle={t("shopping.personal.subtitle")}
+        actions={
+          <button
+            className="btn-primary w-full sm:w-auto"
+            onClick={() => setShowForm((v) => !v)}
+            aria-expanded={showForm}
+          >
+            <Plus className="h-4 w-4" /> {t("shopping.lists.newList")}
+          </button>
+        }
+      />
 
       <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
         <input

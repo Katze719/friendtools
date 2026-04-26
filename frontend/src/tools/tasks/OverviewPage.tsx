@@ -1,11 +1,12 @@
-import { ArrowLeft, ClipboardList, Eraser, Plus } from "lucide-react";
+import { ClipboardList, Eraser, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { groupsApi } from "../../api/groups";
 import type { GroupDetail, Task } from "../../api/types";
 import LoadingState from "../../components/LoadingState";
+import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tasksApi } from "./api";
@@ -125,11 +126,7 @@ export default function TasksOverviewPage() {
   }
 
   if (error && !group) {
-    return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p className="alert-error">{error}</p>;
   }
   if (!group || !tasks || !client) {
     return <LoadingState />;
@@ -143,22 +140,14 @@ export default function TasksOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          to={`/groups/${group.id}`}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("tasks.overview.backToGroup")}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {t("tasks.overview.title")}
-            </h1>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-              {group.name} - {t("tasks.overview.subtitle")}
-            </p>
-          </div>
+      <PageHeader
+        backLink={{
+          to: `/groups/${group.id}`,
+          label: t("tasks.overview.backToGroup"),
+        }}
+        title={t("tasks.overview.title")}
+        subtitle={`${group.name} - ${t("tasks.overview.subtitle")}`}
+        actions={
           <button
             type="button"
             className="btn-primary"
@@ -167,8 +156,8 @@ export default function TasksOverviewPage() {
             <Plus className="h-4 w-4" />
             {t("tasks.overview.add")}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {showAdd && (
         <AddTaskForm
