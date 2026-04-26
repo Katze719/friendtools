@@ -19,6 +19,7 @@ import LinksTab from "./LinksTab";
 import OverviewTab from "./OverviewTab";
 import PackingTab from "./PackingTab";
 import { tripsApi } from "./api";
+import { needsTripInfoSetup } from "./tripSetup";
 
 type TabId = "overview" | "links" | "itinerary" | "packing" | "info";
 
@@ -47,19 +48,6 @@ function writeTab(tripId: string, tab: TabId) {
   } catch {
     /* storage may be disabled */
   }
-}
-
-/**
- * A trip counts as "needing setup" when neither destinations nor dates have
- * been filled in. In that state we highlight the Info tab so the user
- * notices they should record the basics - but we don't force them to.
- */
-function needsInfoSetup(trip: Trip): boolean {
-  return (
-    (trip.destinations?.length ?? 0) === 0 &&
-    !trip.start_date &&
-    !trip.end_date
-  );
 }
 
 /**
@@ -98,7 +86,7 @@ export default function TripDetailPage() {
       setTab(stored);
       return;
     }
-    setTab(needsInfoSetup(trip) ? "info" : "overview");
+    setTab(needsTripInfoSetup(trip) ? "info" : "overview");
   }, [tripId, trip]);
 
   const load = useCallback(() => {
@@ -129,7 +117,7 @@ export default function TripDetailPage() {
     return <LoadingState />;
   }
 
-  const incomplete = needsInfoSetup(trip);
+  const incomplete = needsTripInfoSetup(trip);
   const tabs: { id: TabId; icon: typeof Link2; label: string }[] = [
     { id: "overview", icon: LayoutGrid, label: t("trips.tabs.overview") },
     { id: "links", icon: Link2, label: t("trips.tabs.links") },

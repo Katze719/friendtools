@@ -730,6 +730,10 @@ const en = {
       endDate: "Departure",
       datesHint:
         "Optional. When set, the packing list gets a countdown and the itinerary splits into days automatically.",
+      setupNudgeDates:
+        "Add at least one date here, or add a destination below — then save — to clear the reminder on the Info tab.",
+      setupNudgeDestinations:
+        "Add at least one place here, or set dates above — then save — to clear the reminder on the Info tab.",
       destinationsTitle: "Destinations",
       addDestination: "Add destination",
       destinationsEmpty: "No destinations set yet.",

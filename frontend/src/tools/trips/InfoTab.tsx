@@ -16,6 +16,7 @@ import type { GroupDetail, Trip, TripDestination } from "../../api/types";
 import HelpBanner from "../../components/HelpBanner";
 import { useConfirm, useToast } from "../../ui/UIProvider";
 import { tripsApi } from "./api";
+import { needsTripInfoSetup } from "./tripSetup";
 
 /**
  * "Info" tab for a single trip: edit the lightweight metadata that turns a
@@ -152,6 +153,24 @@ export default function InfoTab({
     setDestinations((d) => d.filter((_, i) => i !== idx));
   }
 
+  const serverNeedsSetup = needsTripInfoSetup(trip);
+  const hasFormDates = Boolean(startDate || endDate);
+  const hasFormDestination = destinations.some((d) => d.name.trim().length > 0);
+  const highlightDatesSection = serverNeedsSetup && !hasFormDates;
+  const highlightDestinationsSection = serverNeedsSetup && !hasFormDestination;
+
+  function setupPulseDot() {
+    return (
+      <span
+        className="relative flex h-2 w-2 shrink-0"
+        aria-hidden
+      >
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+      </span>
+    );
+  }
+
   return (
     <form onSubmit={onSave} className="space-y-6">
       <HelpBanner
@@ -209,10 +228,16 @@ export default function InfoTab({
       </section>
 
       <section className="card space-y-4 p-5">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Calendar className="h-5 w-5 text-brand-500" />
+        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+          {highlightDatesSection ? setupPulseDot() : null}
+          <Calendar className="h-5 w-5 shrink-0 text-brand-500" />
           {t("trips.info.datesTitle")}
         </h2>
+        {highlightDatesSection ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {t("trips.info.setupNudgeDates")}
+          </p>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="label" htmlFor="trip_start">
@@ -246,9 +271,10 @@ export default function InfoTab({
       </section>
 
       <section className="card space-y-4 p-5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <MapPin className="h-5 w-5 text-brand-500" />
+            {highlightDestinationsSection ? setupPulseDot() : null}
+            <MapPin className="h-5 w-5 shrink-0 text-brand-500" />
             {t("trips.info.destinationsTitle")}
           </h2>
           <button
@@ -260,6 +286,11 @@ export default function InfoTab({
             {t("trips.info.addDestination")}
           </button>
         </div>
+        {highlightDestinationsSection ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {t("trips.info.setupNudgeDestinations")}
+          </p>
+        ) : null}
         {destinations.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {t("trips.info.destinationsEmpty")}

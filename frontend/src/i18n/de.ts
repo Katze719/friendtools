@@ -734,6 +734,10 @@ const de: Translations = {
       endDate: "Abreise",
       datesHint:
         "Optional. Wenn gesetzt, bekommt die Packliste einen Countdown und der Reiseplan wird automatisch nach Tagen aufgeteilt.",
+      setupNudgeDates:
+        "Trag mindestens ein Datum ein oder füge unten ein Ziel hinzu — dann speichern — damit der Hinweis im Info-Tab verschwindet.",
+      setupNudgeDestinations:
+        "Trag mindestens ein Ziel ein oder setze oben Daten — dann speichern — damit der Hinweis im Info-Tab verschwindet.",
       destinationsTitle: "Ziele",
       addDestination: "Ziel hinzufügen",
       destinationsEmpty: "Noch keine Ziele festgelegt.",
