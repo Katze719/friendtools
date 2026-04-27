@@ -11,6 +11,7 @@ use validator::Validate;
 use crate::{
     auth::middleware::AuthUser,
     error::{AppError, AppResult},
+    google_calendar,
     state::AppState,
 };
 
@@ -64,6 +65,20 @@ pub struct CalendarEvent {
     pub created_by_display_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl CalendarEvent {
+    pub(crate) fn google_sync_payload(&self) -> crate::google_calendar::CalendarEventPayload {
+        crate::google_calendar::CalendarEventPayload {
+            id: self.id,
+            title: self.title.clone(),
+            description: self.description.clone(),
+            location: self.location.clone(),
+            starts_at: self.starts_at,
+            ends_at: self.ends_at,
+            all_day: self.all_day,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -138,7 +153,10 @@ pub async fn create_group_event(
     Json(payload): Json<CreateEventRequest>,
 ) -> AppResult<Json<CalendarEvent>> {
     let scope = Scope::for_group(&state, group_id, &user).await?;
-    create_event(&state.db, scope, payload).await.map(Json)
+    let ev = create_event(&state.db, scope, payload).await?;
+    let g = ev.google_sync_payload();
+    google_calendar::spawn_sync_calendar_event_saved(state.clone(), user.id, g);
+    Ok(Json(ev))
 }
 
 pub async fn update_group_event(
@@ -148,9 +166,10 @@ pub async fn update_group_event(
     Json(payload): Json<UpdateEventRequest>,
 ) -> AppResult<Json<CalendarEvent>> {
     let scope = Scope::for_group(&state, group_id, &user).await?;
-    update_event(&state.db, scope, event_id, payload)
-        .await
-        .map(Json)
+    let ev = update_event(&state.db, scope, event_id, payload).await?;
+    let g = ev.google_sync_payload();
+    google_calendar::spawn_sync_calendar_event_saved(state.clone(), user.id, g);
+    Ok(Json(ev))
 }
 
 pub async fn delete_group_event(
@@ -159,6 +178,7 @@ pub async fn delete_group_event(
     Path((group_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     let scope = Scope::for_group(&state, group_id, &user).await?;
+    google_calendar::spawn_sync_calendar_deleted(state.clone(), user.id, event_id);
     delete_event(&state.db, scope, event_id).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -179,7 +199,10 @@ pub async fn create_personal_event(
     Json(payload): Json<CreateEventRequest>,
 ) -> AppResult<Json<CalendarEvent>> {
     let scope = Scope::for_personal(&user);
-    create_event(&state.db, scope, payload).await.map(Json)
+    let ev = create_event(&state.db, scope, payload).await?;
+    let g = ev.google_sync_payload();
+    google_calendar::spawn_sync_calendar_event_saved(state.clone(), user.id, g);
+    Ok(Json(ev))
 }
 
 pub async fn update_personal_event(
@@ -189,9 +212,10 @@ pub async fn update_personal_event(
     Json(payload): Json<UpdateEventRequest>,
 ) -> AppResult<Json<CalendarEvent>> {
     let scope = Scope::for_personal(&user);
-    update_event(&state.db, scope, event_id, payload)
-        .await
-        .map(Json)
+    let ev = update_event(&state.db, scope, event_id, payload).await?;
+    let g = ev.google_sync_payload();
+    google_calendar::spawn_sync_calendar_event_saved(state.clone(), user.id, g);
+    Ok(Json(ev))
 }
 
 pub async fn delete_personal_event(
@@ -200,6 +224,7 @@ pub async fn delete_personal_event(
     Path(event_id): Path<Uuid>,
 ) -> AppResult<Json<serde_json::Value>> {
     let scope = Scope::for_personal(&user);
+    google_calendar::spawn_sync_calendar_deleted(state.clone(), user.id, event_id);
     delete_event(&state.db, scope, event_id).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }

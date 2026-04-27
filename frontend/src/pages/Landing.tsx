@@ -84,6 +84,12 @@ export default function Landing() {
             <Link to="/register" className="hover:text-slate-900 dark:hover:text-slate-100">
               {t("landing.nav.signUp")}
             </Link>
+            <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-slate-100">
+              {t("legal.privacyPolicy")}
+            </Link>
+            <Link to="/terms" className="hover:text-slate-900 dark:hover:text-slate-100">
+              {t("legal.termsOfService")}
+            </Link>
           </div>
         </div>
       </footer>

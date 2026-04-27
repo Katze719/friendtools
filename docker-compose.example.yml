@@ -53,6 +53,13 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Optional · Google Calendar one-way sync (omit GOOGLE_CLIENT_ID to disable).
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      GOOGLE_TOKEN_ENCRYPTION_KEY: ${GOOGLE_TOKEN_ENCRYPTION_KEY:-}
+      # All-day → Google: default Europe/Berlin in backend if unset; set IANA zone to match your users.
+      APP_TIMEZONE: ${APP_TIMEZONE:-}
     # Reachable only inside the compose network (as `backend:3000`).
     # The frontend's nginx proxies /api/ to it; no host port exposure needed.
     expose:

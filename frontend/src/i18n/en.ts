@@ -46,6 +46,11 @@ const en = {
     title: "Not found",
     subtitle: "This page does not exist.",
   },
+  legal: {
+    privacyPolicy: "Privacy policy",
+    termsOfService: "Terms of service",
+    backHome: "Home",
+  },
   instance: {
     public: {
       label: "Public instance",
@@ -398,6 +403,24 @@ const en = {
       code: "Invite code",
       codePlaceholder: "ABC12345",
       submit: "Join",
+    },
+    googleCalendarTitle: "Google Calendar",
+    googleCalendarDescription:
+      "Sync trips and calendar events one-way into your Google Calendar.",
+  },
+  integrations: {
+    googleCalendar: {
+      title: "Google Calendar",
+      subtitle:
+        "When connected, saves in Friendflow update matching events in your Google Calendar (friendflow stays the source of truth).",
+      softReadOnly:
+        "Changes you make only in Google Calendar may be overwritten the next time you save something in Friendflow.",
+      statusConnected: "Connected",
+      statusDisconnected: "Not connected",
+      connect: "Connect Google Calendar",
+      disconnect: "Disconnect",
+      connectedToast: "Google Calendar connected.",
+      disconnectedToast: "Disconnected from Google Calendar.",
     },
   },
   group: {

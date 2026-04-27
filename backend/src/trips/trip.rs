@@ -15,6 +15,7 @@ use validator::Validate;
 use crate::{
     auth::middleware::AuthUser,
     error::{AppError, AppResult},
+    google_calendar::{self, TripSyncPayload},
     state::AppState,
 };
 
@@ -182,7 +183,9 @@ pub async fn create(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(Json(fetch_one(&state.db, id.0).await?))
+    let t = fetch_one(&state.db, id.0).await?;
+    google_calendar::spawn_sync_trip_saved(state.clone(), user.id, trip_sync_payload(&t));
+    Ok(Json(t))
 }
 
 pub async fn update(
@@ -270,7 +273,9 @@ pub async fn update(
             .await?;
     }
 
-    Ok(Json(fetch_one(&state.db, trip_id).await?))
+    let t = fetch_one(&state.db, trip_id).await?;
+    google_calendar::spawn_sync_trip_saved(state.clone(), user.id, trip_sync_payload(&t));
+    Ok(Json(t))
 }
 
 pub async fn delete(
@@ -279,6 +284,8 @@ pub async fn delete(
     Path((group_id, trip_id)): Path<(Uuid, Uuid)>,
 ) -> AppResult<Json<serde_json::Value>> {
     crate::groups::ensure_member(&state, group_id, user.id).await?;
+
+    google_calendar::spawn_sync_trip_deleted(state.clone(), user.id, trip_id);
 
     let res = sqlx::query("DELETE FROM trips WHERE id = $1 AND group_id = $2")
         .bind(trip_id)
@@ -290,6 +297,17 @@ pub async fn delete(
         return Err(AppError::NotFound("trip not found".into()));
     }
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+fn trip_sync_payload(trip: &Trip) -> TripSyncPayload {
+    TripSyncPayload {
+        trip_id: trip.id,
+        group_id: trip.group_id,
+        name: trip.name.clone(),
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+        locations: trip.destinations.iter().map(|d| d.name.clone()).collect(),
+    }
 }
 
 // -------------------------------------------------------------------------

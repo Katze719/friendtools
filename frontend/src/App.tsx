@@ -17,8 +17,11 @@ import ResetPassword from "./pages/ResetPassword";
 import PersonalCalendar from "./pages/PersonalCalendar";
 import PersonalShopping from "./pages/PersonalShopping";
 import PersonalShoppingList from "./pages/PersonalShoppingList";
+import GoogleCalendarIntegration from "./pages/GoogleCalendarIntegration";
 import PersonalTasks from "./pages/PersonalTasks";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Register from "./pages/Register";
+import TermsOfService from "./pages/TermsOfService";
 import { tools } from "./tools";
 
 export default function App() {
@@ -26,6 +29,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/pending" element={<PendingApproval />} />
@@ -64,6 +69,10 @@ export default function App() {
                   element={<PersonalShoppingList />}
                 />
                 <Route path="/me/tasks" element={<PersonalTasks />} />
+                <Route
+                  path="/me/integrations/google-calendar"
+                  element={<GoogleCalendarIntegration />}
+                />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

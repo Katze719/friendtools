@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  CalendarPlus,
   CalendarRange,
   ClipboardList,
   Plus,
@@ -166,6 +167,13 @@ export default function Dashboard() {
             description={t("dashboard.personalTasksDescription")}
             icon={<ClipboardList className="h-5 w-5" />}
             iconBg="bg-emerald-500"
+          />
+          <PersonalToolCard
+            to="/me/integrations/google-calendar"
+            title={t("dashboard.googleCalendarTitle")}
+            description={t("dashboard.googleCalendarDescription")}
+            icon={<CalendarPlus className="h-5 w-5" />}
+            iconBg="bg-blue-600"
           />
         </ul>
       </section>

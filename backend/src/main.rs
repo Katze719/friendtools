@@ -23,6 +23,7 @@ mod config;
 mod db;
 mod error;
 mod groups;
+mod google_calendar;
 mod mail;
 mod shopping;
 mod splitwise;
@@ -63,9 +64,17 @@ async fn serve(cfg: config::Config) -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/api/health", get(health))
+        .route(
+            "/api/auth/google-calendar/callback",
+            get(google_calendar::oauth_callback),
+        )
         .nest("/api/auth", auth::routes())
         .nest("/api/admin", admin::routes())
         .nest("/api/groups", groups::routes())
+        .nest(
+            "/api/me/google-calendar",
+            google_calendar::routes(),
+        )
         .nest("/api/me/calendar", calendar::personal_routes())
         .nest("/api/me/shopping", shopping::personal_routes())
         .nest("/api/me/tasks", tasks::personal_routes())

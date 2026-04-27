@@ -114,6 +114,14 @@ export default function Login() {
       <div className="mt-4 flex justify-center">
         <InstallAppButton variant="ghost" />
       </div>
+      <nav className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-1 text-center text-xs text-slate-500 dark:text-slate-400">
+        <Link className="hover:text-slate-800 dark:hover:text-slate-200" to="/privacy">
+          {t("legal.privacyPolicy")}
+        </Link>
+        <Link className="hover:text-slate-800 dark:hover:text-slate-200" to="/terms">
+          {t("legal.termsOfService")}
+        </Link>
+      </nav>
     </div>
   );
 }
