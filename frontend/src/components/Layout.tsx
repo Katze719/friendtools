@@ -148,8 +148,22 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <footer className="border-t border-slate-200/70 bg-white/60 pb-safe dark:border-slate-800/70 dark:bg-slate-950/60">
-        <div className="mx-auto max-w-5xl px-safe py-3 text-xs text-slate-500 dark:text-slate-400">
-          {t("layout.footer")}
+        <div className="mx-auto flex max-w-5xl flex-col gap-2 px-safe py-3 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:text-slate-400">
+          <span>{t("layout.footer")}</span>
+          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link
+              to="/privacy"
+              className="hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              {t("legal.privacyPolicy")}
+            </Link>
+            <Link
+              to="/terms"
+              className="hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              {t("legal.termsOfService")}
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

@@ -48,6 +48,11 @@ const de: Translations = {
     title: "Nicht gefunden",
     subtitle: "Diese Seite gibt es nicht.",
   },
+  legal: {
+    privacyPolicy: "Datenschutz",
+    termsOfService: "Nutzungsbedingungen",
+    backHome: "Zur Startseite",
+  },
   instance: {
     public: {
       label: "Öffentliche Instanz",
@@ -401,6 +406,24 @@ const de: Translations = {
       code: "Einladungscode",
       codePlaceholder: "ABC12345",
       submit: "Beitreten",
+    },
+    googleCalendarTitle: "Google Kalender",
+    googleCalendarDescription:
+      "Synchronisiert Reisen und Kalender-Termine einweg in deinen Google Kalender.",
+  },
+  integrations: {
+    googleCalendar: {
+      title: "Google Kalender",
+      subtitle:
+        "Nach der Verbindung aktualisiert Friendflow bei jedem Speichern die passenden Termine in deinem Google Kalender (Friendflow bleibt maßgeblich).",
+      softReadOnly:
+        "Änderungen nur in Google können beim nächsten Speichern in Friendflow wieder überschrieben werden.",
+      statusConnected: "Verbunden",
+      statusDisconnected: "Nicht verbunden",
+      connect: "Mit Google Kalender verbinden",
+      disconnect: "Trennen",
+      connectedToast: "Google Kalender verbunden.",
+      disconnectedToast: "Google Kalender getrennt.",
     },
   },
   group: {

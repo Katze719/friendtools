@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use chrono_tz::Tz;
 
 /// Controls what happens to new accounts right after registration.
 ///
@@ -65,6 +66,18 @@ impl SmtpEncryption {
     }
 }
 
+/// OAuth + Calendar API integration. When `None`, Google Calendar features
+/// are disabled (handlers return a clear error if called).
+#[derive(Debug, Clone)]
+pub struct GoogleCalendarOAuth {
+    pub client_id: String,
+    pub client_secret: String,
+    /// Full redirect URI registered in Google Cloud (must match exactly).
+    pub redirect_uri: String,
+    /// 32-byte key for AES-256-GCM encryption of refresh tokens at rest (hex).
+    pub token_encryption_key: [u8; 32],
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
@@ -81,6 +94,11 @@ pub struct Config {
     /// SMTP relay. `None` disables email-dependent features (password
     /// recovery).
     pub smtp: Option<SmtpConfig>,
+    pub google_calendar: Option<GoogleCalendarOAuth>,
+    /// IANA timezone used when mapping all-day calendar instants (stored as UTC)
+    /// to calendar dates for Google Calendar `date` fields. Align with where most
+    /// users pick dates in the UI (browser local → UTC); default Europe/Berlin.
+    pub app_timezone: Tz,
 }
 
 impl Config {
@@ -126,6 +144,10 @@ impl Config {
 
         let smtp = parse_smtp_config()?;
 
+        let google_calendar = parse_google_calendar_oauth()?;
+
+        let app_timezone = parse_app_timezone()?;
+
         Ok(Self {
             database_url,
             jwt_secret,
@@ -135,8 +157,71 @@ impl Config {
             registration_mode,
             app_base_url,
             smtp,
+            google_calendar,
+            app_timezone,
         })
     }
+}
+
+fn parse_app_timezone() -> Result<Tz> {
+    match std::env::var("APP_TIMEZONE") {
+        Ok(raw) if !raw.trim().is_empty() => raw
+            .trim()
+            .parse::<Tz>()
+            .with_context(|| format!(
+                "APP_TIMEZONE must be a valid IANA zone (e.g. Europe/Berlin, UTC); got {raw:?}"
+            )),
+        _ => Ok(chrono_tz::Europe::Berlin),
+    }
+}
+
+fn parse_google_calendar_oauth() -> Result<Option<GoogleCalendarOAuth>> {
+    let client_id = std::env::var("GOOGLE_CLIENT_ID")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let Some(client_id) = client_id else {
+        return Ok(None);
+    };
+
+    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
+        .context("GOOGLE_CLIENT_SECRET is required when GOOGLE_CLIENT_ID is set")?
+        .trim()
+        .to_string();
+    if client_secret.is_empty() {
+        anyhow::bail!("GOOGLE_CLIENT_SECRET must not be empty when GOOGLE_CLIENT_ID is set");
+    }
+
+    let redirect_uri = std::env::var("GOOGLE_OAUTH_REDIRECT_URI")
+        .context(
+            "GOOGLE_OAUTH_REDIRECT_URI is required when GOOGLE_CLIENT_ID is set (exact URL from Google Cloud console)",
+        )?
+        .trim()
+        .to_string();
+
+    let key_hex = std::env::var("GOOGLE_TOKEN_ENCRYPTION_KEY").context(
+        "GOOGLE_TOKEN_ENCRYPTION_KEY is required when GOOGLE_CLIENT_ID is set (64 hex chars = 32 bytes)",
+    )?;
+    let key_hex = key_hex.trim();
+    if key_hex.len() != 64 {
+        anyhow::bail!("GOOGLE_TOKEN_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)");
+    }
+    let mut token_encryption_key = [0u8; 32];
+    for (i, chunk) in key_hex.as_bytes().chunks(2).enumerate() {
+        if i >= 32 {
+            break;
+        }
+        let s = std::str::from_utf8(chunk).context("GOOGLE_TOKEN_ENCRYPTION_KEY must be hex")?;
+        token_encryption_key[i] = u8::from_str_radix(s, 16)
+            .map_err(|_| anyhow::anyhow!("GOOGLE_TOKEN_ENCRYPTION_KEY contains non-hex"))?;
+    }
+
+    Ok(Some(GoogleCalendarOAuth {
+        client_id,
+        client_secret,
+        redirect_uri,
+        token_encryption_key,
+    }))
 }
 
 fn parse_smtp_config() -> Result<Option<SmtpConfig>> {
