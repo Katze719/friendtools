@@ -114,6 +114,8 @@ pub async fn oauth_callback(
     .execute(&state.db)
     .await?;
 
+    super::sync::spawn_backfill_existing_entities(state.clone(), user_id);
+
     Ok(Redirect::temporary(&format!(
         "{}/me/integrations/google-calendar?connected=1",
         base

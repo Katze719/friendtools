@@ -56,6 +56,18 @@ pub fn spawn_sync_trip_saved(state: AppState, user_id: Uuid, trip_sync: TripSync
     spawn_sync_inner(state, user_id, ent);
 }
 
+pub fn spawn_backfill_existing_entities(state: AppState, user_id: Uuid) {
+    let Some(ref gcal) = state.cfg.google_calendar else {
+        return;
+    };
+    let gcal = gcal.clone();
+    tokio::spawn(async move {
+        if let Err(e) = backfill_existing_entities(&state, &gcal, user_id).await {
+            tracing::warn!(error = %e, user_id = %user_id, "google calendar backfill failed");
+        }
+    });
+}
+
 #[derive(Clone)]
 pub struct TripSyncPayload {
     pub trip_id: Uuid,
@@ -76,6 +88,81 @@ fn spawn_sync_inner(state: AppState, user_id: Uuid, entity: SyncEntity) {
             tracing::warn!(error = %e, user_id = %user_id, "google calendar sync failed");
         }
     });
+}
+
+async fn backfill_existing_entities(
+    state: &AppState,
+    gcal: &GoogleCalendarOAuth,
+    user_id: Uuid,
+) -> anyhow::Result<()> {
+    let event_rows: Vec<(
+        Uuid,
+        String,
+        String,
+        String,
+        DateTime<Utc>,
+        Option<DateTime<Utc>>,
+        bool,
+    )> = sqlx::query_as(
+        "SELECT ce.id, ce.title, ce.description, ce.location, ce.starts_at, ce.ends_at, ce.all_day
+         FROM calendar_events ce
+         LEFT JOIN group_members gm
+           ON gm.group_id = ce.group_id AND gm.user_id = $1
+         WHERE ce.owner_user_id = $1 OR gm.user_id IS NOT NULL",
+    )
+    .bind(user_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    for row in event_rows {
+        let payload = CalendarEventPayload {
+            id: row.0,
+            title: row.1,
+            description: row.2,
+            location: row.3,
+            starts_at: row.4,
+            ends_at: row.5,
+            all_day: row.6,
+        };
+        sync_entity(state, gcal, user_id, SyncEntity::Calendar(payload)).await?;
+    }
+
+    let trip_rows: Vec<(Uuid, Uuid, String, Option<NaiveDate>, Option<NaiveDate>, Vec<String>)> =
+        sqlx::query_as(
+            "SELECT t.id, t.group_id, t.name, t.start_date, t.end_date,
+                    COALESCE(
+                      (
+                        SELECT ARRAY_AGG(
+                          CASE
+                            WHEN COALESCE(dest->>'name', '') <> '' THEN dest->>'name'
+                            ELSE NULL
+                          END
+                        )
+                        FROM jsonb_array_elements(t.destinations) AS dest
+                      ),
+                      ARRAY[]::TEXT[]
+                    ) AS locations
+             FROM trips t
+             INNER JOIN group_members gm ON gm.group_id = t.group_id
+             WHERE gm.user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_all(&state.db)
+        .await?;
+
+    for row in trip_rows {
+        let payload = SyncEntity::Trip {
+            trip_id: row.0,
+            group_id: row.1,
+            name: row.2,
+            start_date: row.3,
+            end_date: row.4,
+            locations: row.5,
+        };
+        sync_entity(state, gcal, user_id, payload).await?;
+    }
+
+    Ok(())
 }
 
 pub fn spawn_sync_calendar_deleted(state: AppState, user_id: Uuid, event_id: Uuid) {
